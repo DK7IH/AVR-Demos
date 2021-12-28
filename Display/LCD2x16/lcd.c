@@ -1,14 +1,13 @@
-/*****************************************************************/
-/*                  LCD-Demo with ATMega328                      */
-/*  ************************************************************ */
-/*  Mikrocontroller:  ATMEL AVR ATmega328 8 MHz                  */
-/*                                                               */
+///////////////////////////////////////////////////////////////////
+/*  LCD-Demo 2x16 DOT Matrix with ATMega32                       */
+///////////////////////////////////////////////////////////////////
+/*  Mikrocontroller:  ATMEL AVR ATmega32 16 MHz                  */
+///////////////////////////////////////////////////////////////////
 /*  Compiler:         GCC (GNU AVR C-Compiler)                   */
 /*  Autor:            Peter Rachow                               */
 /*  Letzte Aenderung:                                            */
-/*****************************************************************/
-
-#define F_CPU 8000000
+///////////////////////////////////////////////////////////////////
+#define CPUCLK 16
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -18,7 +17,6 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <avr/eeprom.h>
-#include <util/delay.h>
 
 int main(void);
 
@@ -32,12 +30,13 @@ int main(void);
 #define RW_PORT  PORTD   //Port for LCD RW line
 #define E_PORT   PORTD   //Port for LCD E line
 #define LCD_D0 0
-#define LCD_D1 0
+#define LCD_D1 1
 #define LCD_D2 2
 #define LCD_D3 3
-#define LCD_RS 5
-#define LCD_RW 6
-#define LCD_E  7
+#define LCD_RS 4
+#define LCD_RW 5
+#define LCD_E  6
+
 
 void lcd_write(char, unsigned char);
 void lcd_write(char, unsigned char);
@@ -49,29 +48,45 @@ void lcd_putstring(int, int, char*);
 int lcd_putnumber(int, int, long, int, int, char, char);
 void lcd_display_test(void);
 int lcd_check_busy(void);
+void wait_ms(int);
+
+// Wartezeit in Millisekunden bei fck = 8.000 MHz 
+void wait_ms(int ms)
+{
+    int t1, t2;
+
+    for(t1 = 0; t1 < ms; t1++)
+    {
+        for(t2 = 0; t2 < 137 * CPUCLK; t2++)
+        {
+            asm volatile ("nop" ::);
+        }   
+     }    
+}
 
 // Write CMD or DATA to LCD
 void lcd_write(char lcdmode, unsigned char value)
 {
     int t1;
-    
-    while(lcd_check_busy()); //Check busy flag
         
-	LCD_DDR = 0xFF;         //Set DDR as output
-	RW_PORT &= ~(1 << LCD_RW);   //Set RW to write operation, i. e. =0
+    while(lcd_check_busy());    //Check busy flag
+        
+	LCD_DDR |= 0x0F;            //Set DDR as output
+	RW_PORT &= ~(1 << LCD_RW);  //Set RW to write operation, i. e. =0
 	
-    E_PORT &= ~(1 << LCD_E);     //E=0
+    E_PORT &= ~(1 << LCD_E);        //E=0
     if(!lcdmode)
 	{
-        RS_PORT &= ~(1 << LCD_RS); //CMD
+        RS_PORT &= ~(1 << LCD_RS);  //CMD
 	}	
     else
 	{
         RS_PORT |= (1 << LCD_RS);   //DATA
 	}	
-    
+    wait_ms(2);	
+        
     //HI NIBBLE    
-    E_PORT |= (1 << LCD_E); //E = 1
+    E_PORT |= (1 << LCD_E);          //E = 1
     for(t1 = 0; t1 < 4; t1++)
 	{
 	    if(((value & 0xF0) >> 4) & (1 << t1))
@@ -84,7 +99,7 @@ void lcd_write(char lcdmode, unsigned char value)
 	    }  
 	}	
 	E_PORT &= ~(1 << LCD_E);
-	
+		
 	//LO NIBBLE
 	E_PORT |= (1 << LCD_E);
 	for(t1 = 0; t1 < 4; t1++)
@@ -99,44 +114,35 @@ void lcd_write(char lcdmode, unsigned char value)
 	    }  
 	}
     E_PORT &= ~(1 << LCD_E);
-    _delay_ms(1);
 }
 
 int lcd_check_busy(void)
 {
 	unsigned char value;
 	
-	LCD_DDR &= ~(1 << LCD_D0); //LCD_PORT bits 0:3 on rx mode
-	LCD_DDR &= ~(1 << LCD_D1);
-	LCD_DDR &= ~(1 << LCD_D2);
-	LCD_DDR &= ~(1 << LCD_D3);
+	LCD_DDR &= ~(0x0F);           //LCD_PORT bits 0:3 on rx mode
 	
-    //LCD_PORT &= ~(0x01);
     RW_PORT |= (1 << LCD_RW);     //Read operation => RW=1
 	
-	RS_PORT &= ~(1 << LCD_RS); //CMD => RS=0: for busy flag
+	RS_PORT &= ~(1 << LCD_RS);    //CMD => RS=0: for busy flag
 	
 	//Read data
 	//Hi nibble
-	E_PORT |= (1 << LCD_E);          //E=1
-    _delay_us(1);       
+	E_PORT |= (1 << LCD_E);         //E=1
+    wait_ms(1);       
 	value = (LCD_PIN & 0x0F) << 4;
-    E_PORT &= ~(1 << LCD_E);       //E=0	
+    E_PORT &= ~(1 << LCD_E);        //E=0	
 		
 	//Lo nibble
-	E_PORT |= (1 << LCD_E);          //E=1
-    _delay_us(1);       
+	E_PORT |= (1 << LCD_E);         //E=1
+    wait_ms(1);       
 	value += (LCD_PIN & 0x0F);
-    E_PORT &= ~(1 << LCD_E);       //E=0	
+    E_PORT &= ~(1 << LCD_E);        //E=0	
 		
-	LCD_DDR |= (1 << LCD_D0); //LCD_PORT bits 0:3 on rx mode
-	LCD_DDR |= (1 << LCD_D1);
-	LCD_DDR |= (1 << LCD_D2);
-	LCD_DDR |= (1 << LCD_D3);
+	LCD_DDR |= (0x0F);              //LCD_PORT bits 0:3 on rx mode
 		
 	return (value >> 8) & 1;
 }  
-
 
 //Send one char to LCD
 void lcd_putchar(int row, int col, unsigned char ch)
@@ -144,7 +150,6 @@ void lcd_putchar(int row, int col, unsigned char ch)
     lcd_write(0, col + 128 + row * 0x40);
     lcd_write(1, ch);
 }
-
 
 //Print out \0-terminated string on LCD
 void lcd_putstring(int row, int col, char *s)
@@ -163,25 +168,24 @@ void lcd_cls(void)
     lcd_write(0, 1);
 }
 
-
 //Init LCD
 void lcd_init(void)
 {
-		   
     // Basic settings of LCD
     // 4-Bit mode, 2 lines, 5x7 matrix
+    wait_ms(1);
     lcd_write(0, 0x28);
-    _delay_ms(2);
+    wait_ms(1);
     lcd_write(0, 0x28);
-    _delay_ms(2);
+    wait_ms(1);
     
     // Display on, Cursor off, Blink off 
     lcd_write(0, 0x0C);
-    _delay_ms(2);
+    wait_ms(1);
 
     // No display shift, no cursor move
     lcd_write(0, 0x04);
-    _delay_ms(2);
+    wait_ms(1);
 }
 
 //Write an n-digit number (int or long) to LCD
@@ -282,16 +286,16 @@ void lcd_line_cls(int ln)
 }	
 
 //Define chars
-void defcustomcharacters(void)
+void defcustomcharacters(void) 
 {
     int i1;
     unsigned char adr = 0x40;
 
-    unsigned char customchar[]={0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, //S-Meter chars
+    unsigned char customchar[]={0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, //Various bars
 	                            0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18,
 	                            0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C,  
 	                            0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 
-	                            0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, //End S-Mater chars
+	                            0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 
 	                            0x00, 0x00, 0x0E, 0x0E, 0x0E, 0x0E, 0x00, 0x00,
 	                            0x00, 0x00, 0x1F, 0x1F, 0x1F, 0x1F, 0x00, 0x00,
 	                            0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E};
@@ -306,26 +310,22 @@ void defcustomcharacters(void)
     }
 }
 
-
 int main()
 {
-		
-	//Set port for LCD
-    LCD_DDR = 0xFF; //LCD_PORT Bits 0..6
+	LCD_DDR |= (1 << LCD_D0) | (1 << LCD_D1) | (1 << LCD_D2) | (1 << LCD_D3);
+	LCD_DDR |= (1 << LCD_RS) | (1 << LCD_RW) | (1 << LCD_E); //LCD_PORT pins 0..6 as output
 	    		
 	//Display
-	_delay_ms(20); //Datasheet: "Wait for more than 15ms after VDD rises to 4.5V"
+	wait_ms(20); //Datasheet: "Wait for more than 15ms after VDD rises to 4.5V"
     lcd_init();
-    lcd_cls();		
+    defcustomcharacters();
+    lcd_cls();
     
-    defcustomcharacters();		
-    	
-    lcd_putstring(0, 0, "LCD DEMO");
-    lcd_putstring(1, 0, "by DK7IH");
+    lcd_putstring(0, 0, "LCD DEMO by");
+    lcd_putstring(1, 0, "micromaker.de");
         
     for(;;) 
 	{
 	}
 	return 0;
 }
-
