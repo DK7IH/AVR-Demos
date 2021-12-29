@@ -215,6 +215,8 @@ void lcd_putstring(int, int, char*, int, int, int);
 int int2asc(long, int, char*, int);
 int strlen(char *s);
 
+void wait_ms(int);
+
 // Cheap & dirty delay
 void wait_ms(int ms)
 {
