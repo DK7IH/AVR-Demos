@@ -1,14 +1,12 @@
 /*****************************************************************/
 /*                    DDS mit AD9850                            */
 /*  ************************************************************ */
-/*  Mikrocontroller:  ATMEL AVR ATmega8, 8 MHz                  */
+/*  Mikrocontroller:  ATMEL AVR ATmega32,16 MHz                  */
 /*                                                               */
 /*  Compiler:         GCC (GNU AVR C-Compiler)                   */
-/*  Autor:            Peter Rachow                               */
+/*  Autor:            Peter Baier                                */
 /*  Letzte Aenderung: 23.03.2019                                 */
 /*****************************************************************/
-
-
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,7 +18,7 @@
 #include <avr/eeprom.h>
 #include <util/delay.h>
 
-int main(void);
+#define CPUCLK 16
 
 /*******************/
 //       SPI
@@ -45,6 +43,23 @@ int main(void);
 
 void spi_send_bit(int);
 void set_frequency_ad9850(unsigned long);
+
+int main(void);
+void wait_ms(int);
+
+// Cheap & dirty delay
+void wait_ms(int ms)
+{
+    int t1, t2;
+
+    for(t1 = 0; t1 < ms; t1++)
+    {
+        for(t2 = 0; t2 < 137 * CPUCLK; t2++)
+        {
+            asm volatile ("nop" ::);
+        }   
+     }    
+}
 
 //************
 //    SPI
@@ -118,8 +133,6 @@ int main()
 	DDS_DDR = 0x07; //SPI (PB0..PB2) 
     DDS_RESETDDR |= 0x0F;
 	
-	long f;
-	
 	DDS_RESETPORT |= (1 << DDS_RESETPIN);       //Bit set
     _delay_ms(1);       //wait for > 20ns i. e. 1ms minimum time with _delay_s()
 	DDS_RESETPORT &= ~(1 << DDS_RESETPIN);  //Bit erase        
@@ -129,14 +142,7 @@ int main()
         
     for(;;) 
 	{
-		for(f= 1000000; f<40000000; f+=100)
-		{
-			set_frequency_ad9850(f);
-		}	
-	    
 	}
 
-	
-	
-    return 0;
+	return 0;
 }
