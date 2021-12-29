@@ -1,7 +1,7 @@
 /*****************************************************************/
-/*                 DDS mit ATMega328 und AD 9834                 */
+/*                 DDS mit ATMega32 und AD 9834                  */
 /*  ************************************************************ */
-/*  Mikrocontroller:  ATMEL AVR ATmega32, 8 MHz                  */
+/*  Mikrocontroller:  ATMEL AVR ATmega32, 16 MHz                  */
 /*                                                               */
 /*  Compiler:         GCC (GNU AVR C-Compiler)                   */
 /*  Autor:            Peter Rachow                               */
@@ -22,16 +22,32 @@ int main(void);
 ///////////////////////
 //  SPI DDS1  AD9834 //
 ///////////////////////
-//  SPI DDS1 (AD9834)
 #define DDSPORT PORTB
 #define FSYNC 0 //white
 #define SCLK  1  //blue
 #define SDATA 2 //green
 
+#define CPUCLK 16
+
 void spi1_start(void);
 void spi1_send_bit(int);
 void spi1_stop(void);
 void set_frequency1(unsigned long);
+void wait_ms(int);
+
+// Cheap & dirty delay
+void wait_ms(int ms)
+{
+    int t1, t2;
+
+    for(t1 = 0; t1 < ms; t1++)
+    {
+        for(t2 = 0; t2 < 137 * CPUCLK; t2++)
+        {
+            asm volatile ("nop" ::);
+        }   
+     }    
+}
 
 /////////////////
 //  SPI DDS1   //
@@ -133,7 +149,7 @@ int main()
 {
 	DDRB = 0xFF; //SPI (Bit0...Bit2) 
     
-    _delay_ms(10);       
+    wait_ms(10);       
    
 	set_frequency1(10000000);
 	set_frequency1(10000000);
