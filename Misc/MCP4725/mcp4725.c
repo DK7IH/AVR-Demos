@@ -1,22 +1,12 @@
 /*****************************************************************/
 /*              MCP4725 DAC sensor with ATMega32                 */
 /*  ************************************************************ */
-/*  Mikrocontroller:  ATMEL AVR ATmega32, 8 MHz                  */
+/*  Mikrocontroller:  ATMEL AVR ATmega32, 16 MHz                  */
 /*                                                               */
 /*  Compiler:         GCC (GNU AVR C-Compiler)                   */
-/*  Autor:            Peter Rachow                               */
+/*  Autor:            Peter Baier                                */
 /*                    NOV-2018                                   */ 
 /*****************************************************************/
-
-/*    PORTS */
-// O U T P U T 
-// LCD 
-// RS      = PC2
-// E       = PC3
-// D4...D7 = PD4..PD7
-
-#define F_CPU 8000000
-
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,41 +21,12 @@
 int main(void);
 
 /***************/
-/* LCD-Display */
-/***************/
-#define LCD_INST 0x00
-#define LCD_DATA 0x01
-
-void lcd_write(char, unsigned char);
-void lcd_write(char, unsigned char);
-void set_rs(char);
-void set_e(char);
-void lcd_init(void);
-void lcd_cls(void);
-void lcd_line_cls(int);
-void lcd_putchar(int, int, unsigned char);
-void lcd_putstring(int, int, char*);
-void lcd_display_test(void);
-void setcustomcharacters(void);
-
-/*******************/
-/* Stringhandling */
-/*******************/
-int strlen(char *s);
-int instring(char*, char*);
-int strcomp(char*, char*);
-void int2asc(long, int, char*, int);
-
-/***************/
 /*    T W I    */
 /***************/
 //I²C
-void TWIInit(void);
-void TWIStart(void);
-void TWIStop(void);
-uint8_t TWIReadACK(void);
-uint8_t TWIReadNACK(void);
-uint8_t TWIGetStatus(void);
+void twi_init(void);
+void twi_start(void);
+void twi_stop(void);
 
 /***************/
 /*   MCP4725   */
@@ -140,191 +101,13 @@ int sinewave[] =
 1847, 1872, 1897, 1922, 1948, 1973, 1998, 2023
 }; 
 
-/**********************/
-/* V A R I A B L E S  */
-/**********************/
-//Timer
-unsigned long runseconds = 0;
-
-/**************************************/
-/* Funktionen und Prozeduren fuer LCD */
-/**************************************/
-//Anschlussbelegeung am uC:
-//LCD-Data: PD0..PD4
-//RS: PC0
-//E: PC1
-
-/* Ein Byte (Befehl bzw. Zeichen) zum Display senden */
-void lcd_write(char lcdmode, unsigned char value)
-{
-    int x = 16, t1;
-	
-    set_e(0); 
-
-    if(!lcdmode)
-	{
-        set_rs(0);    /* RS=0 => Befehl */
-	}	
-    else
-	{
-        set_rs(1);    /* RS=1 => Zeichen */
-	}	
-
-    _delay_ms(1);
-	
-    set_e(1);
-    //PORTD = (value & 0xF0);
-
-    /* Hi nibble */
-	for(t1 = 0; t1 < 4; t1++)
-	{
-	    if(value & x)
-	    {
-	       PORTD |= x;              // Bit setzen
-	    }
-        else	
-	    {
-           PORTD &= ~(x);          // Bit löschen
-	    }  
-		
-		x *= 2;
-	}	
-	set_e(0);
-	
-	x = 16;
-
-	set_e(1);
-	
-	/* Lo nibble */
-	for(t1 = 0; t1 < 4; t1++)
-	{
-	    if((value & 0x0F) * 16 & x)
-	    {
-	       PORTD |= x;              // Bit setzen
-	    }
-        else	
-	    {
-           PORTD &= ~(x);          // Bit löschen
-	    }  
-		
-		x *= 2;
-	}
-
-    set_e(0);
-
-}
-
-/* RS setzen */
-void set_rs(char status) /* PORT PB6  */
-{
-    if(status)
-	{
-        PORTC |= (1 << 2);
-	}	
-    else
-	{
-	    PORTC &= ~(1 << 2);
-	}	
-}
-
-/* E setzen */
-void set_e(char status)  /* PORT PB7*/
-{
-    if(status)
-	{
-        PORTC |= (1 << 3);
-	}	
-    else
-	{
-	    PORTC &= ~(1 << 3);
-	}	
-}
-
-/* Ein Zeichen (Char) zum Display senden, dieses in */
-/* Zeile row und Spalte col positionieren           */
-void lcd_putchar(int row, int col, unsigned char ch)
-{
-    lcd_write(LCD_INST, col + 128 + row * 0x40);
-    lcd_write(LCD_DATA, ch);
-}
-
-
-/* Eine Zeichenkette direkt in das LCD schreiben */
-/* Parameter: Startposition, Zeile und Pointer   */
-void lcd_putstring(int row, int col, char *s)
-{
-    unsigned char t1;
-
-    for(t1 = col; *(s); t1++)
-	{
-        lcd_putchar(row, t1, *(s++));
-	}	
-}
-
-
-/* Display loeschen */
-void lcd_cls(void)
-{
-    lcd_write(LCD_INST, 1);
-}
-
-
-/* LCD-Display initialisieren */
-void lcd_init(void)
-{
-    /* Grundeinstellungen: 2 Zeilen, 5x7 Matrix, 4 Bit */
-    lcd_write(LCD_INST, 40);
-    lcd_write(LCD_INST, 40);
-    lcd_write(LCD_INST, 40);
-
-    //MAtrix 5*7
-    lcd_write(LCD_INST, 8);
-
-    /* Display on, Cursor off, Blink off */
-    lcd_write(LCD_INST, 12);
-
-    /* Entrymode !cursoincrease + !displayshifted */
-    lcd_write(LCD_INST, 4);
-	
-	//4-Bit-Mode
-    lcd_write(LCD_INST, 2);	
-	
-	lcd_cls();
-}
-
-void lcd_line_cls(int ln)
-{
-    int t1;
-	
-	for(t1 = 0; t1 < 15; t1++)
-	{
-	    lcd_putchar(1, t1, 32);
-	}
-}	
-
-//Define own chars
-void setcustomcharacters(void)
-{
-    int i1;
-    unsigned char adr=64;
-
-    unsigned char customchar[]={0x04, 0x0A, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00};
-    lcd_write(LCD_INST, 0);
-    lcd_write(LCD_DATA, 0);
-
-    //Send data to CGRAM in lcd
-    for (i1=0; i1<8; i1++) {
-        lcd_write(LCD_INST, adr++);
-        lcd_write(LCD_DATA, customchar[i1]);
-    }
-}
 
 /************************/
 //
 //         TWI
 //
 /************************/
-void TWIInit(void)
+void twi_init(void)
 {
     //set SCL to 400kHz
     TWSR = 0x00;
@@ -333,178 +116,23 @@ void TWIInit(void)
     TWCR = (1<<TWEN);
 }
 
-void TWIStart(void)
+void twi_start(void)
 {
     TWCR = (1<<TWINT)|(1<<TWSTA)|(1<<TWEN);
     while ((TWCR & (1<<TWINT)) == 0);
 }
 
 //send stop signal
-void TWIStop(void)
+void twi_stop(void)
 {
     TWCR = (1<<TWINT)|(1<<TWSTO)|(1<<TWEN);
 }
 
-void TWIWrite(uint8_t u8data)
+void twi_write(uint8_t u8data)
 {
     TWDR = u8data;
     TWCR = (1<<TWINT)|(1<<TWEN);
     while ((TWCR & (1<<TWINT)) == 0);
-}
-
-uint8_t TWIReadACK(void)
-{
-    TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
-    while ((TWCR & (1<<TWINT)) == 0);
-    return TWDR;
-}
-
-//read byte with NACK
-uint8_t TWIReadNACK(void)
-{
-    TWCR = (1<<TWINT)|(1<<TWEN);
-    while ((TWCR & (1<<TWINT)) == 0);
-    return TWDR;
-}
-
-uint8_t TWIGetStatus(void)
-{
-    uint8_t status;
-    //mask status
-    status = TWSR & 0xF8;
-    return status;
-}
-
-
-
-/***********************/
-//
-// STRING-FUNCTIONS
-//
-/**********************/
-
-
-//Convert int number to string
-void int2asc(long num, int dec, char *buf, int buflen)
-{
-    int i, c, xp = 0, neg = 0;
-    long n, dd = 1E09;
-
-    if(num < 0)
-    {
-     	neg = 1;
-	    n = num * -1;
-    }
-    else
-    {
-	    n = num;
-    }
-
-    //Fill buffer with \0
-    for(i = 0; i < 12; i++)
-    {
-	    *(buf + i) = 0;
-    }
-
-    c = 9; //Max. number of displayable digits
-    while(dd)
-    {
-	    i = n / dd;
-	    n = n - i * dd;
-	
-	    *(buf + 9 - c + xp) = i + 48;
-	    dd /= 10;
-	    if(c == dec && dec)
-	    {
-	        *(buf + 9 - c + ++xp) = ',';
-	    }
-	    c--;
-    }
-
-    //Search for 1st char different from '0'
-    i = 0;
-    while(*(buf + i) == 48)
-    {
-	    *(buf + i++) = 32;
-    }
-
-    //Add minus-sign if neccessary
-    if(neg)
-    {
-	    *(buf + --i) = '-';
-    }
-
-    //Eleminate leading spaces
-    c = 0;
-    while(*(buf + i))
-    {
-	    *(buf + c++) = *(buf + i++);
-    }
-    *(buf + c) = 0;
-
-
-}
-
-//Compare 2 strings
-int strcomp(char *s1, char *s2)
-{
-    int t1;
-    for(t1 = 0; t1 < strlen(s2); t1++)
-    {
-        if(*(s1 + t1) != *(s2 + t1))
-	    {
-	       return 0;
-		}
-    }
-    
-    return 1;   
-}
-
-//Get length of string
-int strlen(char *s)
-{
-   int t1 = 0;
-
-   while(*(s + t1++));
-
-   return (t1 - 1);
-}
-
-//Find s2 in s1 if present, hand back position in string if yes
-int instring(char *s1, char *s2)
-{
-   int t1, t2, ok;
-
-   for(t1 = 0; *(s1 + t1) ; t1++)
-   {
-	    ok = 1;
-	    for(t2 = 0; t2 < strlen(s2); t2++)
-	    {
-	  
-	        if(*(s1 + t1 + t2) != *(s2 + t2))
-	        {
-	            ok = 0;
-	        }
-	    }
-	    
-		if(ok)
-	    {
-	        return t1;
-	    }
-    }
-
-    return 0;
-}
-
-/////////////////////////
-// INTERRUPT HANDLERS  //
-/////////////////////////
-//Timer1
-ISR(TIMER1_OVF_vect)
-{
-    runseconds++;
-
-    TCNT1 = 0;       // Timerregister auf 0 
 }
 
 /***************/
@@ -513,12 +141,12 @@ ISR(TIMER1_OVF_vect)
 //Send comand to MCP4725
 void mcp4725_set_value(int value)
 {
-   TWIStart();
-   TWIWrite(0xC0); //Device address
-   TWIWrite(64);       		    	
-   TWIWrite((value >> 4) & 0xFF); //8 MSBs
-   TWIWrite(value & 0xF0);        //4LSBs
-   TWIStop();			
+   twi_start();
+   twi_write(0xC0); //Device address
+   twi_write(64);       		    	
+   twi_write((value >> 4) & 0xFF); //8 MSBs
+   twi_write(value & 0xF0);        //4LSBs
+   twi_stop();			
 		
 } 
 
@@ -527,29 +155,13 @@ int main()
 
     int t1;	
     
-	/* Set ports */
-    /* OUTPUT */
-    DDRC = 0x0C; //LCD RS and E at PC2 and PC3,
-	             	 
-    DDRD = 0xF0; //LCD data on PD4...PD7, LED at PD2
-	             
-    PORTC = 0x03; //Pull ups for SDL,SCA
-    
     //Init TWI
-    TWIInit();
+    twi_init();
 	
-	//Display
-    lcd_init();
-	_delay_ms(50);
-	
-	setcustomcharacters();	
 	//Watchdog off
 	WDTCR = 0;
 	WDTCR = 0;
-   	    
-    lcd_putstring(0, 0, "MCP4725 DAC");
-    lcd_putstring(1, 0, "DK7IH 2018");
-    
+   	
     for(;;) 
 	{
 			for(t1 = 0; t1 < 512; t1 += 8)
