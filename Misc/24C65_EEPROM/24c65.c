@@ -154,7 +154,7 @@ int main(void)
     {
 		//Write EEPROM
         eeprom24c65_write(t1, t1);
-        if(x1 > 255)
+        if(x1++ > 255)
         {
 			x1 = 0;
 		}
