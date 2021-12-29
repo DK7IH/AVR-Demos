@@ -1,12 +1,11 @@
 /*****************************************************************/
-/*                      Nokia 5110 LCD Code                      */
+/*                    Nokia 5110 LCD Driver Code                 */
 /*  ************************************************************ */
-/*  Mikrocontroller:  ATMEL AVR ATmega168, 8 MHz                 */
+/*  Mikrocontroller:  ATMEL AVR ATmega32, 16 MHz                 */
 /*                                                               */
 /*  Compiler:         GCC (GNU AVR C-Compiler)                   */
-/*  Autor:            Peter Rachow                               */
+/*  Autor:            Peter Baier                                */
 /*****************************************************************/
-
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -17,19 +16,17 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <avr/eeprom.h>
-#include <util/delay.h>
 
-#undef F_CPU 
-#define F_CPU 8000000
-
+#define CPUCLK 16
 
 // PORT definitions of Nokia 5110 lines
-#define CLK 128 //blue
-#define DIN 64 //green
-#define DC 32  //grey
-#define RST 16 //yellow
-#define LCDPORT PORTD     //Port for LCD
-#define LCDPORTDDR DDRD   //Data direction register for LCDPORT
+#define RST 1 
+#define DC  2 
+#define DIN 4
+#define CLK 8 
+
+#define LCD_PORT PORTD     //Port for LCD
+#define LCD_DDR DDRD   //Data direction register for LCD_PORT
  
 // Font 5x8 for LCD Display Nokia 5110
 const char xchar[485] = {
@@ -149,11 +146,22 @@ void lcd_putnumber(int, int, long, int, int, int);
 void lcd_init(void);
 void lcd_clearsection(int, int, int);
 void lcd_cls(int, int, int, int);
-//  DATA DISPLAY ROUTINES
-void show_frequency(unsigned long);
 
+void wait_ms(int);
 
+// Cheap & dirty delay
+void wait_ms(int ms)
+{
+    int t1, t2;
 
+    for(t1 = 0; t1 < ms; t1++)
+    {
+        for(t2 = 0; t2 < 137 * CPUCLK; t2++)
+        {
+            asm volatile ("nop" ::);
+        }   
+     }    
+}
 
 //*******************************
 // STRING FUNCTIONS
@@ -246,27 +254,27 @@ void lcd_sendbyte(char x, int command)
 	
 	if(command)
 	{   //CMD
-	    LCDPORT &= ~(DC);
+	    LCD_PORT &= ~(DC);
 	}
 	else 
     {  //DATA
-	    LCDPORT |= DC;
+	    LCD_PORT |= DC;
 	} 
 	
     for(t1 = 0; t1 < 8; t1++)
     { 
-	    LCDPORT &= ~(CLK);
+	    LCD_PORT &= ~(CLK);
 			    
         if(x & bx)
 	    {
-            LCDPORT |= DIN; 
+            LCD_PORT |= DIN; 
 		}
 	    else
         {
-	        LCDPORT &= ~(DIN);
+	        LCD_PORT &= ~(DIN);
 	    }	
         
-		LCDPORT |= CLK;
+		LCD_PORT |= CLK;
     	
 		bx >>= 1;
     }
@@ -287,9 +295,9 @@ void lcd_sendcmd(char x)
 //Reset LCD when program starts
 void lcd_reset(void)
 {
-    LCDPORT &= ~(RST);
-	_delay_us(100);
-    LCDPORT |= RST;
+    LCD_PORT &= ~(RST);
+	wait_ms(1);
+    LCD_PORT |= RST;
 }	
 
 //Set pos of cursor to start next text display on LCD
@@ -306,14 +314,14 @@ void lcd_cleanram(void)
     
 	lcd_gotoxy(0,0);
 	
-    _delay_ms(10);
+    wait_ms(10);
     
 	for(i = 0; i < 768; i++)
     {
         lcd_senddata(0x00);
 	}	
     
-	_delay_ms(1);
+	wait_ms(1);
 }
 
 //2^x
@@ -460,7 +468,7 @@ void lcd_putnumber(int col, int row, long num, int dec, int lsize, int inv)
 void lcd_init(void)
 {
 
-    _delay_ms(20);
+    wait_ms(20);
 	lcd_reset();
 		
 	//Configure the display
@@ -472,7 +480,7 @@ void lcd_init(void)
     lcd_sendcmd(0x0C);    //Set display to normal mode.
 	
 	lcd_cleanram();
-    _delay_ms(100);
+    wait_ms(100);
 }	
 
 //Clear part of LCD
@@ -504,32 +512,18 @@ void lcd_cls(int x0, int x1, int y0, int y1)
 	}	
 }
 
-//****************************
-//  DATA DISPLAY ROUTINES
-//****************************
-//Current frequency (double letter height)
-void show_frequency(unsigned long f)
-{
-	if(f < 10000000)
-	{
-	    lcd_putstring(0, 2, " ", 1, 0);
-	    lcd_putnumber(12, 2, f / 100, 1, 1, 0);
-	}
-	else
-	{
-		lcd_putnumber(0, 2, f / 100, 1, 1, 0);
-	}	    
-	    
-}
-
 int main(void)
 {
    
-    LCDPORTDDR =  CLK | DIN | DC | RST;
-	             	
-	//INIT LCD
+    LCD_DDR = 0x0F; //CLK | DIN | DC | RST;
+	
+	wait_ms(100);
+	lcd_reset();
 	lcd_init();
-	show_frequency(14200000);
+	wait_ms(100);
+	lcd_cls(0, 0, 48, 84);
+	lcd_putstring(0, 0, "Nokia 5110", 0, 0);
+	lcd_putstring(0, 1, "micromaker.de", 0, 0);
 	
 	for(;;)
 	{
