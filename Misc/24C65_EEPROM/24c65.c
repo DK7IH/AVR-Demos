@@ -24,7 +24,7 @@
 #define DEVICE_ADDR 0xA0
 
 void eeprom24c65_write( int, unsigned char);
-unsigned char eeprom24c65_read(int);
+int eeprom24c65_read(int);
 
   ///////////////////////////
  //        T  W  I        //
@@ -124,7 +124,7 @@ void eeprom24c65_write(int mem_address, unsigned char value)
    twi_stop();	
 }	
 
-unsigned char eeprom24c65_read(int mem_address)
+int eeprom24c65_read(int mem_address)
 {
    int hi_addr = mem_address >> 8;
    int lo_addr = mem_address & 0xFF;
@@ -145,25 +145,26 @@ int main(void)
 {
     int t1, x1 = 0, x2 = 0;
     
-    DDRD = 0x03; //Set PB0, PB1 for output (control LEDs)
+    DDRD = 0x03; //Set PD0, PD1 for output (control LEDs)
     	
 	//TWI
 	twi_init();
+
+	PORTD &= ~(1 << PD0);
+	PORTD &= ~(1 << PD1);
+	
+	wait_ms(500);
 	
     for(t1 = 0; t1 < EEPROMSIZE; t1++)
     {
 		//Write EEPROM
-        eeprom24c65_write(t1, t1);
-        if(x1++ > 255)
-        {
-			x1 = 0;
-		}
-		
-		wait_ms(200);
+        eeprom24c65_write(t1, x1);
+        
+		wait_ms(50);
 		
 		//Read EEPROM
 		x2 = eeprom24c65_read(t1);
-		wait_ms(200);
+		wait_ms(50);
 		
 		//Compare
 		if(x1 == x2)
@@ -176,9 +177,15 @@ int main(void)
 			PORTD |= (1 << PD0);
 			PORTD &= ~(1 << PD1);
 		}
-		wait_ms(200);
+		wait_ms(50);
 		PORTD |= (1 << PD0);
 		PORTD |= (1 << PD1);
+		
+		if(x1++ > 255)
+        {
+			x1 = 0;
+		}
+		
 	}
 	
 	return 0;
