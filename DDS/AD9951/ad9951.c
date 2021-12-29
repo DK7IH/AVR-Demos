@@ -1,13 +1,12 @@
 /*****************************************************************/
-/*                   DDS with  ATMega168and 9951                 */
+/*                   DDS with  ATMega32 MCU and AD9951           */
 /*  ************************************************************ */
-/*  Mikrocontroller:  ATMEL AVR ATmega8, 8 MHz                   */
+/*  Mikrocontroller:  ATMEL AVR ATmega32, 16 MHz                  */
 /*                                                               */
 /*  Compiler:         GCC (GNU AVR C-Compiler)                   */
-/*  Autor:            Peter Rachow  DK7IH                        */
+/*  Autor:            Peter Baier   DK7IH                        */
 /*  Letzte Aenderung: 09.01.2016                                 */
 /*****************************************************************/
-
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -23,11 +22,12 @@
 #define DDSPORT PORTC
 #define DDSDDR DDRC
 
-#define DDSRES 1 //gray
-#define SDIO 2
-#define SCLK 4
-#define IO_UD 8  
+#define DDSRES 1 
+#define SDIO   2
+#define SCLK   4
+#define IO_UD  8  
 
+#define CPUCLK 16
 
 int main(void);
 
@@ -43,6 +43,21 @@ int main(void);
 void spi_send_byte(unsigned int);
 void set_frequency(unsigned long);
 
+void wait_ms(int);
+
+// Cheap & dirty delay
+void wait_ms(int ms)
+{
+    int t1, t2;
+
+    for(t1 = 0; t1 < ms; t1++)
+    {
+        for(t2 = 0; t2 < 137 * CPUCLK; t2++)
+        {
+            asm volatile ("nop" ::);
+        }   
+     }    
+}
 //************
 //    SPI
 //************
@@ -147,28 +162,27 @@ void set_clock_multiplier(void)
     DDSPORT |= (IO_UD); //IO_UD hi 
 }	
 
-
 int main()
 {
          
     //Set DDRs of DDSPort and DDSResetport  
 	DDSDDR = 0x0F; //SPI-Lines PC0:PC2, RES PC3
 	
-	_delay_ms(100);
+	wait_ms(100);
 	//Reset DDS (AD9951)
 	DDSPORT |= DDSRES;  
-	_delay_ms(100);
+	wait_ms(100);
 	DDSPORT &= ~DDSRES;          
-    _delay_ms(100);
+    wait_ms(100);
 	DDSPORT |= DDSRES;  
 	
     //set_clock_multiplier();
     set_frequency(5000000);
     set_frequency(5000000);
+    
     for(;;) 
 	{
-		
-	}
+    }
 	
     return 0;
 }
