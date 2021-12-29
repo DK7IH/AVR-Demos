@@ -37,7 +37,6 @@ int main(void);
 #define LCD_RW 5
 #define LCD_E  6
 
-
 void lcd_write(char, unsigned char);
 void lcd_write(char, unsigned char);
 void lcd_init(void);
@@ -321,7 +320,7 @@ int main()
     defcustomcharacters();
     lcd_cls();
     
-    lcd_putstring(0, 0, "LCD DEMO by");
+    lcd_putstring(0, 0, "LCD162 driver");
     lcd_putstring(1, 0, "micromaker.de");
         
     for(;;) 
