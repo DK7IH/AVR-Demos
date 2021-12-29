@@ -1,14 +1,13 @@
 /*****************************************************************/
 /*                    Display OLED SH1106       132x64           */
 /*  ************************************************************ */
-/*  MUC:              ATMEL AVR ATmega168, 8 MHz                 */
+/*  MUC:              ATMEL AVR ATmega32, 16 MHz                 */
 /*                                                               */
 /*  Compiler:         GCC (GNU AVR C-Compiler)                   */
-/*  Author:           Peter Rachow (DK7IH)                       */
+/*  Author:           Peter Baier (DK7IH)                        */
 /*  Last change:      OCT 2017                                   */
 /*****************************************************************/
- 
-//PORTS
+ //PORTS
 
 //TWI
 //PC4=SDA, PC5=SCL: I²C-Bus lines: 
@@ -21,12 +20,11 @@
 #include <avr/io.h>
 #include <avr/sleep.h>
 #include <avr/eeprom.h>
-#include <util/delay.h>
+
 #include <util/twi.h>
 #include <avr/pgmspace.h>
 
-#undef F_CPU 
-#define F_CPU 16000000
+#define CPUCLK 16
 
 #define OLEDADDR 0x78
 #define OLEDCMD 0x00   //Command follows
@@ -162,7 +160,6 @@ void oled_putnumber(int, int, long, int, int, int);
 void oled_putstring(int, int, char*, char, int);
 void oled_write_section(int, int, int, int);
 
-
 //I²C
 void TWIInit(void);
 void TWIStart(void);
@@ -177,6 +174,22 @@ int strlen(char *s);
 
 //MISC
 int main(void);
+
+void wait_ms(int);
+
+// Cheap & dirty delay
+void wait_ms(int ms)
+{
+    int t1, t2;
+
+    for(t1 = 0; t1 < ms; t1++)
+    {
+        for(t2 = 0; t2 < 137 * CPUCLK; t2++)
+        {
+            asm volatile ("nop" ::);
+        }   
+     }    
+}
 
 ///////////////////////////
 //
@@ -524,7 +537,7 @@ int int2asc(long num, int dec, char *buf, int buflen)
     *(buf + c) = 0;
 	
 	return c;
-}
+} 
 
 //STRLEN
 int strlen(char *s)  
@@ -544,19 +557,17 @@ int main(void)
 	             //I²C-Bus lines: PC4=SDA, PC5=SCL
 	//TWI
 	twi_init();
-	_delay_ms(20);
+	wait_ms(20);
 	
 	//OLED
 	oled_init();
-	_delay_ms(20);
+	wait_ms(20);
 	
 	oled_cls(0);	
 	
-	oled_putstring(0, 0, "DK7IH SH1106 OLED", 0, 0);
-	oled_putstring(0, 2, "(C)2020", 1, 0);
-	oled_write_section(0, 60, 6, 170);
-
-	  
+	oled_putstring(0, 0, "SH1106 OLED driver", 0, 0);
+	oled_putstring(0, 2, "micromaker.de", 0, 0);
+		  
     for(;;)
     {
 	    
