@@ -17,7 +17,6 @@
 //E:        PC2
 //RST       PC3
 
-#define F_CPU 8000000
 #define FONTHEIGHT 8
 
 #include <inttypes.h>
@@ -29,7 +28,6 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <avr/eeprom.h>
-#include <util/delay.h>
 
   ///////////////////
  //  LCD-Display  //
@@ -42,7 +40,9 @@
 #define LCD_RS 0
 #define LCD_RW 1  
 #define LCD_E  2  
-#define LCD_RST 6 
+#define LCD_RST 3
+
+#define CPUCLK 16
 
 int main(void);
 
@@ -328,6 +328,34 @@ unsigned char font[] =
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 	// 0xFF
 */
 };
+
+void wait_ms(int);
+void wait_us(int);
+
+// Cheap & dirty delay
+void wait_ms(int ms)
+{
+    int t1, t2;
+
+    for(t1 = 0; t1 < ms; t1++)
+    {
+        for(t2 = 0; t2 < 137 * CPUCLK; t2++)
+        {
+            asm volatile ("nop" ::);
+        }   
+     }    
+}
+
+void wait_us(int us)
+{
+    int t1;
+
+    for(t1 = 0; t1 < us; t1++)
+    {
+        asm volatile ("nop" ::);
+        
+    }    
+}
 	
   /////////////////////////////////////
  // Functions for LCD12864 control  //
@@ -339,11 +367,10 @@ void lcd_write(char lcdmode, unsigned char value)
 	
 	set_rw(0);	     //Write operation
 	set_rs(lcdmode); //0 for instruction, 1 for data
-       
-	LCD_DATA_PORT = value;
+    LCD_DATA_PORT = value;
     set_e(1);
-    _delay_us(10);
-	set_e(0);	
+    wait_us(50);
+    set_e(0);	
 		
 	set_rs(0);
 }    
@@ -359,7 +386,7 @@ char lcd_read(char lcdmode)
 	set_rs(lcdmode);      //Get value 0: for busy flag, 1 for other data
 	
 	set_e(1);             //Read data
-    _delay_us(10);       
+    wait_ms(1);       
 	value = PIND;
     set_e(0);	
 	
@@ -411,7 +438,7 @@ void set_e(char status)
 int is_lcd_busy(void)
 {
 	int v = lcd_read(0);
-	_delay_us(10);
+	wait_ms(1);
 	v = lcd_read(0);
 			
 	if(v & 0x80)
@@ -675,34 +702,33 @@ void lcd_putnumber(int col, int row, long num, int dec, int lsize, int inv)
 	}	
 	free(s);
 }
-  
 
 //Init LCD
 void lcd_init(void)
 {            
     //Reset
     LCD_CTRL_PORT &= ~(1 << LCD_RST);
-    _delay_ms(5);
+    wait_ms(5);
     LCD_CTRL_PORT |= (1 << LCD_RST);
-    _delay_ms(40);
+    wait_ms(40);
     
     lcd_write(0, 0x30);	//Use 8-bit mode parallel
-    _delay_ms(1);
+    wait_ms(1);
          
     lcd_write(0, 0x0C); //All on Cursor on, Blink on , Display on
-    _delay_ms(1);
+    wait_ms(1);
         
     lcd_write(0, 0x01); //Perform CLS in text mode to eliminate random chars from screen
-    _delay_ms(20);
+    wait_ms(20);
     
     lcd_write(0, 0x34); //Switch to extended mode, redefine function set
-    _delay_us(100);
+    wait_ms(1);
     
     lcd_write(0, 0x36); //Add graphic mode
-    _delay_us(100);
+    wait_ms(1);
                    
     lcd_write(0, 0x12); //Display control and display ON
-    _delay_us(100);
+    wait_ms(1);
 }
 
 //////////////////////
@@ -784,14 +810,14 @@ int main(void)
 	LCD_DATA_DDR = 0xFF; //LCD data
    	                 		
 	//Display init
-	_delay_ms(100);
+	wait_ms(100);
     lcd_init();
-	_delay_ms(100);
+	wait_ms(100);
 	
     lcd_cls();
         
     lcd_putstring_a(0, 0, "LCD 12864 ST7920", 0, 0);
-    lcd_putstring_a(1, 0, "   DK7IH 2018   ", 0, 1);
+    lcd_putstring_a(1, 0, "  micromaker.de  ", 0, 1);
     lcd_putstring_a(2, 0, "Graphical Fonts:", 0, 0);
     lcd_putstring_a(3, 0, "8x8px.", 0, 0);
     lcd_putnumber(4, 0, 1234, 1, 0, 0);    
