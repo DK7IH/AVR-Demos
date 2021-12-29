@@ -1,43 +1,29 @@
 /*****************************************************************/
-/*     BMP180 Temp & Pressure Sensor Demo-Demo with ATMega328    */
+/*     BMP180 Temp & Pressure Sensor Demo  with ATMega32         */
 /*  ************************************************************ */
-/*  Mikrocontroller:  ATMEL AVR ATmega328p 8 MHz                 */
+/*  Mikrocontroller:  ATMEL AVR ATmega32 16MHz                   */
 /*                                                               */
 /*  Compiler:         GCC (GNU AVR C-Compiler)                   */
-/*  Autor:            Peter Rachow                               */
-/*  Letzte Aenderung: 07-2021                                    */
+/*  Autor:            Peter Baier                                */
+/*  Letzte Aenderung: 07-2016                                    */
 /*****************************************************************/
+//This examples uses UART to output measured data.
+//Parameters are 9600-8-N-1
+//Data can be read on PD0
 
-#define F_CPU 8000000
+#define CPUCLK 16
 
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <avr/eeprom.h>
-#include <util/delay.h>
 
 int main(void);
-
-  ///////////////////
- //  LCD-Display  //
-///////////////////
-#define LCD_DDR  DDRD
-#define LCD_PIN PIND
-#define LCD_PORT PORTD  //Port for LCD D0:D3
-#define RS_PORT  PORTD  //Port for LCD RS line
-#define RW_PORT  PORTD   //Port for LCD RW line
-#define E_PORT   PORTD   //Port for LCD E line
-#define LCD_D0 0
-#define LCD_D1 0
-#define LCD_D2 2
-#define LCD_D3 3
-#define LCD_RS 5
-#define LCD_RW 6
-#define LCD_E  7
 
 //I²C
 void TWIInit(void);
@@ -52,17 +38,7 @@ long BMP180_get_temp(void);
 void BMP180_get_cvalues(void);
 long BMP180_get_pressure(void);
 
-//LCD
-void lcd_write(char, unsigned char);
-void lcd_write(char, unsigned char);
-void lcd_init(void);
-void lcd_cls(void);
-void lcd_line_cls(int);
-void lcd_putchar(int, int, unsigned char);
-void lcd_putstring(int, int, char*);
-int lcd_putnumber(int, int, long, int, int, char, char);
-void lcd_display_test(void);
-int lcd_check_busy(void);
+int int2asc(long, int, char*, int);
 
 //BMP180 variables
 //calibration data
@@ -70,261 +46,18 @@ int ac1, ac2, ac3, b1, b2, mb, mc, md;
 unsigned int ac4, ac5, ac6;
 long b5;
 
-
-// Write CMD or DATA to LCD
-void lcd_write(char lcdmode, unsigned char value)
+// Cheap & dirty delay
+void wait_ms(int ms)
 {
-    int t1;
-    
-    while(lcd_check_busy()); //Check busy flag
-        
-	LCD_DDR = 0xFF;         //Set DDR as output
-	RW_PORT &= ~(1 << LCD_RW);   //Set RW to write operation, i. e. =0
-	
-    E_PORT &= ~(1 << LCD_E);     //E=0
-    if(!lcdmode)
-	{
-        RS_PORT &= ~(1 << LCD_RS); //CMD
-	}	
-    else
-	{
-        RS_PORT |= (1 << LCD_RS);   //DATA
-	}	
-    
-    //HI NIBBLE    
-    E_PORT |= (1 << LCD_E); //E = 1
-    for(t1 = 0; t1 < 4; t1++)
-	{
-	    if(((value & 0xF0) >> 4) & (1 << t1))
-	    {
-	       LCD_PORT |= (1 << t1);      
-	    }
-        else	
-	    {
-           LCD_PORT &= ~(1 << t1);     
-	    }  
-	}	
-	E_PORT &= ~(1 << LCD_E);
-	
-	//LO NIBBLE
-	E_PORT |= (1 << LCD_E);
-	for(t1 = 0; t1 < 4; t1++)
-	{
-	    if(value  & (1 << t1))
-	    {
-	       LCD_PORT |= (1 << t1);      
-	    }
-        else	
-	    {
-           LCD_PORT &= ~(1 << t1);     
-	    }  
-	}
-    E_PORT &= ~(1 << LCD_E);
-    _delay_ms(1);
-}
+    int t1, t2;
 
-int lcd_check_busy(void)
-{
-	unsigned char value;
-	
-	LCD_DDR &= ~(1 << LCD_D0); //LCD_PORT bits 0:3 on rx mode
-	LCD_DDR &= ~(1 << LCD_D1);
-	LCD_DDR &= ~(1 << LCD_D2);
-	LCD_DDR &= ~(1 << LCD_D3);
-	
-    //LCD_PORT &= ~(0x01);
-    RW_PORT |= (1 << LCD_RW);     //Read operation => RW=1
-	
-	RS_PORT &= ~(1 << LCD_RS); //CMD => RS=0: for busy flag
-	
-	//Read data
-	//Hi nibble
-	E_PORT |= (1 << LCD_E);          //E=1
-    _delay_us(1);       
-	value = (LCD_PIN & 0x0F) << 4;
-    E_PORT &= ~(1 << LCD_E);       //E=0	
-		
-	//Lo nibble
-	E_PORT |= (1 << LCD_E);          //E=1
-    _delay_us(1);       
-	value += (LCD_PIN & 0x0F);
-    E_PORT &= ~(1 << LCD_E);       //E=0	
-		
-	LCD_DDR |= (1 << LCD_D0); //LCD_PORT bits 0:3 on rx mode
-	LCD_DDR |= (1 << LCD_D1);
-	LCD_DDR |= (1 << LCD_D2);
-	LCD_DDR |= (1 << LCD_D3);
-		
-	return (value >> 8) & 1;
-}  
-
-
-//Send one char to LCD
-void lcd_putchar(int row, int col, unsigned char ch)
-{
-    lcd_write(0, col + 128 + row * 0x40);
-    lcd_write(1, ch);
-}
-
-
-//Print out \0-terminated string on LCD
-void lcd_putstring(int row, int col, char *s)
-{
-    unsigned char t1 = col;
-
-    while(*(s))
-	{
-        lcd_putchar(row, t1++, *(s++));
-	}	
-}
-
-//Clear LCD
-void lcd_cls(void)
-{
-    lcd_write(0, 1);
-}
-
-
-//Init LCD
-void lcd_init(void)
-{
-		   
-    // Basic settings of LCD
-    // 4-Bit mode, 2 lines, 5x7 matrix
-    lcd_write(0, 0x28);
-    _delay_ms(2);
-    lcd_write(0, 0x28);
-    _delay_ms(2);
-    
-    // Display on, Cursor off, Blink off 
-    lcd_write(0, 0x0C);
-    _delay_ms(2);
-
-    // No display shift, no cursor move
-    lcd_write(0, 0x04);
-    _delay_ms(2);
-}
-
-//Write an n-digit number (int or long) to LCD
-int lcd_putnumber(int row, int col, long num, int digits, int dec, char orientation, char showplussign)
-{
-    char cl = col, minusflag = 0;
-    unsigned char cdigit[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, digitcnt = 0;
-    long t1, t2, n = num, r, x = 1;
-
-    if(num < 0)
+    for(t1 = 0; t1 < ms; t1++)
     {
-        minusflag = 1;
-        n *= -1;
-    }
-
-    /* Stellenzahl automatisch bestimmen */
-    if(digits == -1)
-    {
-        for(t1 = 1; t1 < 10 && (n / x); t1++)
-		{
-            x *= 10;
-		}	
-        digits = t1 - 1;
-    }
-
-    if(!digits)
-        digits = 1;
-
-    for(t1 = digits - 1; t1 >= 0; t1--)
-    {
-        x = 1;
-        for(t2 = 0; t2 < t1; t2++)
-            x *= 10;
-        r = n / x;
-        cdigit[digitcnt++] = r + 48;
-
-        if(t1 == dec) 
-            cdigit[digitcnt++] = 46;
-        n -= r * x;
-    }
-
-    digitcnt--;
-    t1 = 0;
-
-    /* Ausgabe */
-    switch(orientation)
-    {
-        case 'l':   cl = col;
-                    if(minusflag)
-                    {
-                        lcd_putchar(row, cl++, '-');
-                        digitcnt++;
-                    }	 
-		            else
-		            {
-		                if(showplussign)
-			            {
-			                lcd_putchar(row, cl++, '+');
-                            digitcnt++;
-			            } 
-                    }	
-			
-                    while(cl <= col + digitcnt)                       /* Linksbuendig */
-		            {
-                        lcd_putchar(row, cl++, cdigit[t1++]);
-					}	
-                    break;
-
-        case 'r':   t1 = digitcnt;                              /* Rechtsbuendig */
-                    for(cl = col; t1 >= 0; cl--)              
-					{
-                        lcd_putchar(row, cl, cdigit[t1--]);
-                        if(minusflag)	
-						{
-                            lcd_putchar(row, --cl, '-');
-                        }
-					}	
-    }
-	
-    if(dec == -1)
-	{
-        return digits;
-	}	
-    else
-	{
-        return digits + 1;	
-	}	
-}	
-
-void lcd_line_cls(int ln)
-{
-    int t1; 
-	
-	for(t1 = 0; t1 < 15; t1++)
-	{
-	    lcd_putchar(1, t1, 32);
-	}
-}	
-
-//Define chars
-void defcustomcharacters(void)
-{
-    int i1;
-    unsigned char adr = 0x40;
-
-    unsigned char customchar[]={0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, //S-Meter chars
-	                            0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18,
-	                            0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C,  
-	                            0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 
-	                            0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, //End S-Mater chars
-	                            0x00, 0x00, 0x0E, 0x0E, 0x0E, 0x0E, 0x00, 0x00,
-	                            0x00, 0x00, 0x1F, 0x1F, 0x1F, 0x1F, 0x00, 0x00,
-	                            0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E};
-    lcd_write(0, 0);
-    lcd_write(1, 0);
-
-    //Send data to CGRAM in LCD
-    for (i1 = 0; i1 < 64; i1++)
-    {
-        lcd_write(0, adr++);
-        lcd_write(1, customchar[i1]);
-    }
+        for(t2 = 0; t2 < 137 * CPUCLK; t2++)
+        {
+            asm volatile ("nop" ::);
+        }   
+     }    
 }
 
 /************************/
@@ -406,7 +139,7 @@ long BMP180_get_pressure(void)
 	TWIWrite(0x34); //Register value = read pressure oss = 0!
 	TWIStop();
 		
-	_delay_ms(100);
+	wait_ms(100);
 	
 	TWIStart();     //Restart
 	TWIWrite(0xEE); //Device adress and WRITE mode
@@ -458,7 +191,7 @@ long BMP180_get_temp(void)
 	TWIWrite(0x2E); //Register value = read temperature!
 	TWIStop();
 		
-	_delay_ms(100);
+	wait_ms(100);
 	
 	TWIStart();     //Restart
 	TWIWrite(0xEE); //Device adress and WRITE mode
@@ -517,37 +250,128 @@ void BMP180_get_cvalues(void)
     mb  = BMP180_coeff[8];
     mc  = BMP180_coeff[9];
     md  = BMP180_coeff[10];
-	
 }
+
+/////////////////////////////////
+//
+// STRING FUNCTIONS
+//
+////////////////////////////////
+//INT 2 ASC
+int int2asc(long num, int dec, char *buf, int buflen)
+{
+    int i, c, xp = 0, neg = 0;
+    long n, dd = 1E09;
+
+    if(!num)
+	{
+	    *buf++ = '0';
+		*buf = 0;
+		return 1;
+	}	
+		
+    if(num < 0)
+    {
+     	neg = 1;
+	    n = num * -1;
+    }
+    else
+    {
+	    n = num;
+    }
+
+    //Fill buffer with \0
+    for(i = 0; i < 12; i++)
+    {
+	    *(buf + i) = 0;
+    }
+
+    c = 9; //Max. number of displayable digits
+    while(dd)
+    {
+	    i = n / dd;
+	    n = n - i * dd;
+	
+	    *(buf + 9 - c + xp) = i + 48;
+	    dd /= 10;
+	    if(c == dec && dec)
+	    {
+	        *(buf + 9 - c + ++xp) = '.';
+	    }
+	    c--;
+    }
+
+    //Search for 1st char different from '0'
+    i = 0;
+    while(*(buf + i) == 48)
+    {
+	    *(buf + i++) = 32;
+    }
+
+    //Add minus-sign if neccessary
+    if(neg)
+    {
+	    *(buf + --i) = '-';
+    }
+
+    //Eleminate leading spaces
+    c = 0;
+    while(*(buf + i))
+    {
+	    *(buf + c++) = *(buf + i++);
+    }
+    *(buf + c) = 0;
+	
+	return c;
+} 
+
+void uart_send_string(char *s2)
+{
+	while(*s2)
+	{
+		while (!(UCSRA & (1<<UDRE)))  /* warten bis Senden moeglich                   */
+        {
+        }
+		UDR = *s2++; 
+	}	
+}	
 
 int main()
 {
+	char *s, *str_crlf;
+	
+	s = malloc(255);
+	str_crlf = malloc(8);
+	str_crlf[0] = 13;
+	str_crlf[1] = 10;
+	str_crlf[2] = 0;
 		
-	//Set port for LCD
-    LCD_DDR = 0xFF; //LCD_PORT Bits 0..6
-	    		
-	//Display
-	_delay_ms(20); //Datasheet: "Wait for more than 15ms after VDD rises to 4.5V"
-    lcd_init();
-    lcd_cls();		
-    
-    defcustomcharacters();		
-    	
-    lcd_putstring(0, 0, "BMP180 DEMO");
-    lcd_putstring(1, 0, "by DK7IH");
-    
-    _delay_ms(1000);
-    lcd_cls();
-    
+	//Init UART	
+	UCSRB |= (1<<TXEN);                           // UART TX enable
+    UCSRC = (1<<URSEL)|(1 << UCSZ1)|(1 << UCSZ0); // Parameters: Asynchronous transmission, 8N1
+    UBRRH = 103 >> 8;   //9600 Bd.
+    UBRRL = 103 & 0xFF;
+	
+    wait_ms(1000);
+        
     //Init Tempsensor & communication
     TWIInit();
 	BMP180_get_cvalues();     		
          
     for(;;) 
 	{
-		lcd_putstring(0, 1 + lcd_putnumber(0, 0, BMP180_get_pressure(), -1, -1, 'l', 0), "hPa");
-		lcd_putstring(1, 1 + lcd_putnumber(1, 0, BMP180_get_temp(), -1, 1, 'l', 0), "degC");
-		_delay_ms(500);
+		int2asc(BMP180_get_pressure(), -1, s, 128);
+		strcat(s, "hPa");
+		uart_send_string("Air pressure: "); 
+		uart_send_string(s); 
+	    uart_send_string(str_crlf); 
+		wait_ms(2000);
+		int2asc(BMP180_get_temp(), 1, s, 128);
+		strcat(s, "°C");
+		uart_send_string("Temperature: "); 
+		uart_send_string(s);
+		uart_send_string(str_crlf);  
+		wait_ms(2000);
 	}
 	return 0;
 }
