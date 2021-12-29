@@ -26,16 +26,17 @@
 int main(void);
 
 //I²C
-void TWIInit(void);
-void TWIStart(void);
-void TWIStop(void);
-uint8_t TWIReadACK(void);
-uint8_t TWIReadNACK(void);
-uint8_t TWIGetStatus(void);
+void twi_init(void);
+void twi_write(uint8_t);
+void twi_start(void);
+void twi_stop(void);
+uint8_t twi_read_ack(void);
+uint8_t twi_read_not_ack(void);
+uint8_t twi_get_status(void);
 
 //BMP180 functions
 long BMP180_get_temp(void);
-void BMP180_get_cvalues(void);
+void bmp180_get_cvalues(void);
 long BMP180_get_pressure(void);
 
 int int2asc(long, int, char*, int);
@@ -65,7 +66,7 @@ void wait_ms(int ms)
 //         TWI
 //
 /************************/
-void TWIInit(void)
+void twi_init(void)
 {
     //set SCL to 400kHz
     TWSR = 0x00;
@@ -74,26 +75,25 @@ void TWIInit(void)
     TWCR = (1<<TWEN);
 }
 
-void TWIStart(void)
+void twi_start(void)
 {
     TWCR = (1<<TWINT)|(1<<TWSTA)|(1<<TWEN);
     while ((TWCR & (1<<TWINT)) == 0);
 }
 
 //send stop signal
-void TWIStop(void)
+void twi_stop(void)
 {
     TWCR = (1<<TWINT)|(1<<TWSTO)|(1<<TWEN);
 }
 
-void TWIWrite(uint8_t u8data)
+void twi_write(uint8_t u8data)
 {
     TWDR = u8data;
     TWCR = (1<<TWINT)|(1<<TWEN);
     while ((TWCR & (1<<TWINT)) == 0);
 }
-
-uint8_t TWIReadACK(void)
+uint8_t twi_read_ack(void)
 {
     TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
     while ((TWCR & (1<<TWINT)) == 0);
@@ -101,20 +101,21 @@ uint8_t TWIReadACK(void)
 }
 
 //read byte with NACK
-uint8_t TWIReadNACK(void)
+uint8_t twi_read_not_ack(void)
 {
     TWCR = (1<<TWINT)|(1<<TWEN);
     while ((TWCR & (1<<TWINT)) == 0);
     return TWDR;
 }
 
-uint8_t TWIGetStatus(void)
+uint8_t twi_get_status(void)
 {
     uint8_t status;
     //mask status
     status = TWSR & 0xF8;
     return status;
 }
+
 
 /************************/
 //
@@ -133,28 +134,28 @@ long BMP180_get_pressure(void)
 	//char *buf = malloc(16);
 	
 	//Start
-	TWIStart();
-	TWIWrite(0xEE); //Device adress and set WRITE mode
-	TWIWrite(0xF4); //Register adress
-	TWIWrite(0x34); //Register value = read pressure oss = 0!
-	TWIStop();
+	twi_start();
+	twi_write(0xEE); //Device adress and set WRITE mode
+	twi_write(0xF4); //Register adress
+	twi_write(0x34); //Register value = read pressure oss = 0!
+	twi_stop();
 		
 	wait_ms(100);
 	
-	TWIStart();     //Restart
-	TWIWrite(0xEE); //Device adress and WRITE mode
-	TWIWrite(0xF6); //Specify register (0xF6(MSB), 0xF7 (LSB))
+	twi_start();     //Restart
+	twi_write(0xEE); //Device adress and WRITE mode
+	twi_write(0xF6); //Specify register (0xF6(MSB), 0xF7 (LSB))
 	
 	//Get value 
 	//Restart first
-	TWIStart();
-	TWIWrite(0xEF); //Send device adress and set READ mode
+	twi_start();
+	twi_write(0xEF); //Send device adress and set READ mode
 		
 	//Copy data to buffer
-	up  = (long) TWIReadACK() << 8;  //MSB
-    up |= (long) TWIReadNACK();      //LSB
+	up  = (long) twi_read_ack() << 8;  //MSB
+    up |= (long) twi_read_not_ack();      //LSB
 	
-	TWIStop();
+	twi_stop();
 		
 	//Calculate real pressure
 	b6 = b5 - 4000L;
@@ -185,28 +186,28 @@ long BMP180_get_temp(void)
 	long x1, x2;
 			
 	//Start
-	TWIStart();
-	TWIWrite(0xEE); //Device adress and set WRITE mode
-	TWIWrite(0xF4); //Register adress
-	TWIWrite(0x2E); //Register value = read temperature!
-	TWIStop();
+	twi_start();
+	twi_write(0xEE); //Device adress and set WRITE mode
+	twi_write(0xF4); //Register adress
+	twi_write(0x2E); //Register value = read temperature!
+	twi_stop();
 		
 	wait_ms(100);
 	
-	TWIStart();     //Restart
-	TWIWrite(0xEE); //Device adress and WRITE mode
-	TWIWrite(0xF6); //Specify register (0xF6(MSB), 0xF7 (LSB))
+	twi_start();     //Restart
+	twi_write(0xEE); //Device adress and WRITE mode
+	twi_write(0xF6); //Specify register (0xF6(MSB), 0xF7 (LSB))
 	
 	//Get value 
 	//Restart first
-	TWIStart();
-	TWIWrite(0xEF); //Send device adress and set READ mode
+	twi_start();
+	twi_write(0xEF); //Send device adress and set READ mode
 		
 	//Copy data to buffer
-	tmp  = (long) TWIReadACK() << 8;  //MSB
-    tmp |= (long) TWIReadNACK();      //LSB
+	tmp  = (long) twi_read_ack() << 8;  //MSB
+    tmp |= (long) twi_read_not_ack();      //LSB
 	
-	TWIStop();
+	twi_stop();
 	
 	//Calculate temperature
 	x1 = ((tmp - ac6) * ac5) >> 15;
@@ -218,7 +219,7 @@ long BMP180_get_temp(void)
 
 
 //Get the calibration values from BMP180 sensor
-void BMP180_get_cvalues(void)
+void bmp180_get_cvalues(void)
 {
     int BMP180_regaddress[11] = {0xAA, 0xAC, 0xAE, 0xB0, 0xB2, 0xB4, 0xB6, 0xB8, 0xBA, 0xBC, 0xBE};
 	int BMP180_coeff[11] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -226,15 +227,15 @@ void BMP180_get_cvalues(void)
 		
 	for(t1 = 0; t1 < 11; t1++)
 	{
-        TWIStart();
-	    TWIWrite(0xEE); //Device adress and set WRITE mode
-	    TWIWrite(BMP180_regaddress[t1]); //Specify register (0xF6(MSB), 0xF7 (LSB))
+        twi_start();
+	    twi_write(0xEE); //Device adress and set WRITE mode
+	    twi_write(BMP180_regaddress[t1]); //Specify register (0xF6(MSB), 0xF7 (LSB))
 	    //Restart first
-	    TWIStart();
-	    TWIWrite(0xEF); //Send device adress and set READ mode
-	    BMP180_coeff[t1] = TWIReadACK() << 8;  //MSB
-	    BMP180_coeff[t1] |= TWIReadNACK();  //LSB
-	    TWIStop();
+	    twi_start();
+	    twi_write(0xEF); //Send device adress and set READ mode
+	    BMP180_coeff[t1] = twi_read_ack() << 8;  //MSB
+	    BMP180_coeff[t1] |= twi_read_not_ack();  //LSB
+	    twi_stop();
     }
 	
 	ac1 = BMP180_coeff[0];
@@ -355,8 +356,8 @@ int main()
     wait_ms(1000);
         
     //Init Tempsensor & communication
-    TWIInit();
-	BMP180_get_cvalues();     		
+    twi_init();
+	bmp180_get_cvalues();     		
          
     for(;;) 
 	{
