@@ -1,14 +1,12 @@
 /*****************************************************************/
-/*                  TEST w. ATMega88 and Si5351                 */
+/*                  Si5351 clock oscillator demo code            */
 /*  ************************************************************ */
-/*  MUC:              ATMEL AVR ATmega88,  8 MHz                 */
+/*  MUC:              ATMEL AVR ATmega 32  16MHz                 */
 /*                                                               */
 /*  Compiler:         GCC (GNU AVR C-Compiler)                   */
-/*  Author:           Peter Rachow (DK7IH)                       */
+/*  Author:           Peter Baier (DK7IH)                       */
 /*  Last change:      OCT 2017                                   */
 /*****************************************************************/
-
-
 //TWI
 //PC4=SDA, PC5=SCL: I²C-Bus lines: 
 
@@ -44,14 +42,29 @@
 #define PLL_RESET              177
 #define XTAL_LOAD_CAP          183
 
-#undef F_CPU
-#define F_CPU 8000000
+#define CPUCLK 16
 
 //SI5351 Declarations & frequency
 void si5351_write(int, int);
 void si5351_start(void);
 void si5351_set_freq(int, unsigned long);
+int main(void);
 
+void wait_ms(int);
+
+// Cheap & dirty delay
+void wait_ms(int ms)
+{
+    int t1, t2;
+
+    for(t1 = 0; t1 < ms; t1++)
+    {
+        for(t2 = 0; t2 < 137 * CPUCLK; t2++)
+        {
+            asm volatile ("nop" ::);
+        }   
+     }    
+}
 
 ///////////////////////////
 //
@@ -193,17 +206,15 @@ int main(void)
     PORTC = 0xFF; //I²C-Bus lines: PC4=SDA, PC5=SCL
     
 	//TWI	
-	_delay_ms(100);
+	wait_ms(100);
 	twi_init();
-	_delay_ms(100);
+	wait_ms(100);
 	
 	si5351_start();
 	si5351_set_freq(SYNTH_MS_0, f);
 	
 	for(;;)
     {
-		
-        
     }
 	
 	return 0;
