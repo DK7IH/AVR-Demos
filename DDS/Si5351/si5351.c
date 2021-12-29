@@ -44,6 +44,13 @@
 
 #define CPUCLK 16
 
+//TWI
+void twi_init(void);
+void twi_start(void);
+void twi_stop(void);
+void twi_write(uint8_t);
+uint8_t twi_get_status(void);
+
 //SI5351 Declarations & frequency
 void si5351_write(int, int);
 void si5351_start(void);
@@ -71,7 +78,6 @@ void wait_ms(int ms)
 //         TWI
 //
 ///////////////////////////
-
 void twi_init(void)
 {
 	
@@ -104,7 +110,7 @@ void twi_write(uint8_t u8data)
     while ((TWCR & (1<<TWINT)) == 0);
 }
 
-uint8_t TWIGetStatus(void)
+uint8_t twi_get_status(void)
 {
     uint8_t status;
     //mask status
