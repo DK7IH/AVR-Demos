@@ -12,7 +12,7 @@
 #
 
 # MCU name
-MCU = atmega168
+MCU = atmega32
 
 # Output format. (can be srec, ihex)
 FORMAT = ihex

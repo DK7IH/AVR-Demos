@@ -24,9 +24,7 @@
 #include <util/delay.h>
 #include <util/twi.h>
 
-#undef F_CPU 
-#define F_CPU 8000000 
-
+#define CPUCLK 16
 
 ////////////////
 // SPI for DDS
@@ -35,6 +33,25 @@
 #define FSNYC 8 //green PB3
 #define SDATA 2 //white PB1
 #define SCLK 4  //blue PB2
+
+void spi_send_word(unsigned int);
+void set_frequency(unsigned long, int);
+int main(void);
+void wait_ms(int);
+
+// Cheap & dirty delay
+void wait_ms(int ms)
+{
+    int t1, t2;
+
+    for(t1 = 0; t1 < ms; t1++)
+    {
+        for(t2 = 0; t2 < 137 * CPUCLK; t2++)
+        {
+            asm volatile ("nop" ::);
+        }   
+     }    
+}
 
 
 //************
@@ -110,7 +127,7 @@ int main(void)
     unsigned long freq = 5000000;
     DDRD = 0x07;//SPI for DDS on PB0..PB2
 
-    _delay_ms(100);
+    wait_ms(100);
     
     set_frequency(freq, 1);
     set_frequency(freq, 0);
@@ -120,7 +137,7 @@ int main(void)
 	     for(freq = 2000000; freq < 2200000; freq += 1)
 	     {
 			 set_frequency(freq, 0);
-			 _delay_ms(1);
+			 wait_ms(1);
 		 }
     }
     return 0;
