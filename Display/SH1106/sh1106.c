@@ -161,12 +161,12 @@ void oled_putstring(int, int, char*, char, int);
 void oled_write_section(int, int, int, int);
 
 //I²C
-void TWIInit(void);
-void TWIStart(void);
-void TWIStop(void);
-uint8_t TWIReadACK(void);
-uint8_t TWIReadNACK(void);
-uint8_t TWIGetStatus(void);
+void twi_init(void);
+void twi_start(void);
+void twi_stop(void);
+uint8_t twi_read_ack(void);
+uint8_t twi_read_not_ack(void);
+uint8_t twi_get_status(void);
 
 //String
 int int2asc(long num, int dec, char *buf, int buflen);
@@ -227,7 +227,7 @@ void twi_write(uint8_t u8data)
     while ((TWCR & (1<<TWINT)) == 0);
 }
 
-uint8_t TWIGetStatus(void)
+uint8_t twi_get_status(void)
 {
     uint8_t status;
     //mask status
