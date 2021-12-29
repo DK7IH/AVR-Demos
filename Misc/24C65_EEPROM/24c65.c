@@ -176,6 +176,7 @@ int main(void)
 		{
 			PORTD |= (1 << PD0);
 			PORTD &= ~(1 << PD1);
+			wait_ms(1000);
 		}
 		wait_ms(50);
 		PORTD |= (1 << PD0);
