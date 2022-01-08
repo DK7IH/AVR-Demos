@@ -1,0 +1,17 @@
+Upload FLASH: 
+avrdude -p m328p -c usbtiny -U flash:w:"01_Outport.hex"
+
+
+Download FLASH: 
+avrdude -p m328p -c usbtiny -U flash:r:"flash.hex":r
+
+
+Upload EEPROM: 
+avrdude -p m328p -c usbtiny -U eeprom:w:"eeprom"
+
+
+Download EEPROM: 
+avrdude -p m328p -c usbtiny -U eeprom:r:"eeprom":r
+
+
+
