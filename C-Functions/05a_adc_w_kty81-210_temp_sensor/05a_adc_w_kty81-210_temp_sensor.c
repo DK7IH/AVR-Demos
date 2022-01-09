@@ -336,24 +336,24 @@ int get_adc(int adc_channel)
 	return adc_val;
 }	
 
-int main()
+int main(void)
 {
-	int adcret = 0;
-	double volt;
-	double rtherm;
-	int r1 = 2000; //Fixed resitor in voltage divider to VDD
-	int vdd = 5;   //Ref. voltage for MCU ADC
-	double temp;
+	int adcret = 0;//ADC return value (0..1023)
+	double volt;   //Voltage derived from ADC value
+	double rtherm; //Resistance of KTY81-210
+	int r1 = 2000; //Fixed resitor in voltage divider to VDD in Ohms
+	int vdd = 5;   //Ref. voltage for MCU ADC, usually 5V stab.
+	double temp;   //Resulting temperature
 	
 	//Define LCD Port as Output
 	LCD_DDR |= (1 << LCD_D0) | (1 << LCD_D1) | (1 << LCD_D2) | (1 << LCD_D3);
-	LCD_DDR |= (1 << LCD_RS) | (1 << LCD_RW) | (1 << LCD_E); //LCD_PORT pins 0..6 as output
+	LCD_DDR |= (1 << LCD_RS) | (1 << LCD_RW) | (1 << LCD_E); 
     
     //ADC config and ADC init
     ADCSRA = (1<<ADPS0) | (1<<ADPS1) | (1<<ADEN); //Prescaler 64 and ADC on
-	get_adc(0); //One dummy conversion
+	get_adc(0);  //One dummy conversion
     		
-	//Display init procedure
+	             //Display init procedure
 	wait_ms(20); //Datasheet: "Wait for more than 15ms after VDD rises to 4.5V"
     lcd_init();
     defcustomcharacters();
@@ -363,15 +363,18 @@ int main()
         
     for(;;) 
 	{
-		adcret = get_adc(0);                   //Get ADV value (0 <= ADCval <= 1023)
-		volt = (double) adcret * vdd / 1023;   //Convert ADCval to voltage
-	    rtherm = r1 / (vdd / volt - 1);        //Calculate current resistance of KTY81-210 thermistor
-	    temp = (rtherm - 1690) / 13.88 * 10;   //Calculate temp based on function R.therm = m*T+y0 from data sheet
-	                                           //Multiply by 10 to get 1 decimal for more exact readout on LCD
+		adcret = get_adc(0);                     //Get ADV value (0 <= ADCval <= 1023)
+		volt = (double) adcret * vdd / 1023;     //Convert ADCval to voltage
+	    rtherm = r1 / (vdd / volt - 1);          //Calculate current resistance of KTY81-210 thermistor
+	    temp = (rtherm - 1690) / 13.88 * 10.0;   //Calculate temp based on function R.therm = m*T+y0 from data sheet
+	                                             //Multiply by 10 to get 1 decimal for more exact readout on LCD
+		lcd_putstring(1, 0, "ADC:");
+		lcd_putnumber(1, 4, adcret, -1, -1, 'l', 0);
+		lcd_putstring(1, 9, "T:");
+		lcd_putnumber(1, 11, (int) temp, -1, 1, 'l', 0);
 		
-		lcd_putnumber(1, 0, (int) temp, -1, 1, 'l', 0);
-		wait_ms(300);
-		lcd_putstring(1, 0, "    ");
+		wait_ms(10000);  //Wait 10 sec. to update
+		lcd_line_cls(1);
 	}
 	return 0;
 }
