@@ -330,7 +330,7 @@ int get_adc(int adc_channel)
     while(ADCSRA & (1<<ADSC)); 
 		
 	adc_val = ADCL;                       //Read LSB first
-    adc_val += ADCH * 256;                //Read MSB
+    adc_val += ADCH << 8;                //Read MSB
 	
 	return adc_val;
 }	
