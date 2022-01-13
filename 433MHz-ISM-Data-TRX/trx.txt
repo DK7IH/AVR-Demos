@@ -1,1 +1,2 @@
 
+This directory contaions demosntration code for usage of the RFM12b 433MHz ISM radio transceiver module.
