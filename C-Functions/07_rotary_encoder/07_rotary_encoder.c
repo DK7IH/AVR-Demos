@@ -62,7 +62,7 @@ ISR(PCINT0_vect)
 int main()
 {
 	PORTB = 0x03; //INPUT: Pullup resistors PD0 and PD1 rotary encoder
-	DDRD = 0x03; //LEDs on PD0, PD1
+	DDRD = 0x03;  //Output LEDs on PD0, PD1
 	
     //Interrupt definitions for rotary encoder  
 	PCMSK0 |= ((1<<PCINT0) | (1<<PCINT1));  //Enable encoder pins as interrupt source
