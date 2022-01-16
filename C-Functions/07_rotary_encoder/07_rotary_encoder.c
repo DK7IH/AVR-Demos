@@ -47,12 +47,11 @@ void wait_ms(int ms)
 //Rotary encoder
 ISR(PCINT0_vect)
 { 
-    
-    int gray = (PINB & 0x03);              // Read PB0 and PB1
+    int pins = (PINB & 0x03);               //Read PB0 and PB1
 	
-    int state = (gray >> 1) ^ gray;         // Convert from Gray code to binary
+    int state = (pins >> 1) ^ pins;         //Convert from Gray code to binary
 
-    if (state != laststate)                //Compare states
+    if (state != laststate)                 //Compare states
     {        
         direction += ((laststate - state) & 3) - 2; // Results in -1 or +1
         laststate = state;
