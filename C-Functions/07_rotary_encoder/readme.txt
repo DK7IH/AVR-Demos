@@ -4,4 +4,4 @@ Version 2 is more simple than V1. If it does not work from scratch, try to chang
 A and B since there is only 1 interrupt triggering pin. If it is the "wrong" one only one 
 direction will be detected!
 
-V3 in addtion uses Timer1 as counter for Milliseconds and resets LEDs 1s after the last took place
+V3 in addition uses Timer1 as counter for Milliseconds and resets LEDs 1s after the last took place
