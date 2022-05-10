@@ -22,10 +22,10 @@
 #define DDSPORT PORTC
 #define DDSDDR DDRC
 
-#define DDSRES 1 
-#define SDIO   2
-#define SCLK   4
-#define IO_UD  8  
+#define DDSRES 1 //RES PC0 violet 
+#define SDIO   2 //SDIO PC1 green 
+#define SCLK   4 //SCLK PC2 blue
+#define IO_UD  8 //IO_UPDATE PC3 white
 
 #define CPUCLK 16
 
@@ -34,11 +34,7 @@ int main(void);
 /*******************/
 //       SPI
 /*******************/
-//Port usage
-//IO_UPDATE:   PB0 (1) (green)  
-//SDIO (DATA): PB1 (2) (white)
-//SCLK         PB2 (4) (blue)
-//RESET        PD7     (violet/ white-blue)
+
 
 void spi_send_byte(unsigned int);
 void set_frequency(unsigned long);
@@ -112,10 +108,10 @@ void set_frequency(unsigned long frequency)
     //fword = (unsigned long) f * 39.045157236;
     
     //Clock rate =  125MHz
-    fword = (unsigned long) f * 34.358675; 
+    //fword = (unsigned long) f * 34.358675; 
         	
 	//Clock rate =  200MHz
-    //fword = (unsigned long) f * 21.47478;  //..36448
+    fword = (unsigned long) f * 21.47478;  //..36448
     
     //Clock rate =  300MHz
     //fword = (unsigned long) f * 14.316557653;
@@ -162,26 +158,35 @@ void set_clock_multiplier(void)
     DDSPORT |= (IO_UD); //IO_UD hi 
 }	
 
-int main()
+int main() 
 {
-         
+    long f = 5000000;     
     //Set DDRs of DDSPort and DDSResetport  
 	DDSDDR = 0x0F; //SPI-Lines PC0:PC2, RES PC3
 	
 	wait_ms(100);
 	//Reset DDS (AD9951)
-	DDSPORT |= DDSRES;  
+	
+    DDSPORT |= DDSRES;  
 	wait_ms(100);
 	DDSPORT &= ~DDSRES;          
     wait_ms(100);
-	DDSPORT |= DDSRES;  
+    DDSPORT |= DDSRES;  
+	wait_ms(100);
 	
+    
     //set_clock_multiplier();
-    set_frequency(5000000);
-    set_frequency(5000000);
+    set_frequency(f);
+    set_frequency(f);
     
     for(;;) 
 	{
+		set_frequency(f += 100);
+		
+		if(f > 40000000)
+		{
+			f = 5000000;
+		}	
     }
 	
     return 0;
