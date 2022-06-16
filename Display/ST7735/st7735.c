@@ -1,11 +1,11 @@
 ///////////////////////////////////////////////////////////////////
-//            ST7735 Color LCD DEMO with ATMega328               //
+//            ST7735 Color LCD DEMO with ATMega32                //
 ///////////////////////////////////////////////////////////////////
-//  Mikrocontroller:  ATMEL AVR ATmega328,  8 MHz                //
+//  Mikrocontroller:  ATMEL AVR ATmega32,  16 MHz                //
 //                                                               //
 //  Compiler:         GCC (GNU AVR C-Compiler)                   //
 //  Author:           Peter Rachow (DK7IH)                       //
-//                    JAN-2019                                   // 
+//                    JAN-2018                                   // 
 ///////////////////////////////////////////////////////////////////
 /*                                                               // 
  Datasheet:                                                      //  
@@ -41,26 +41,27 @@
 // LED                tie to 3.3V+                               //
 ///////////////////////////////////////////////////////////////////
 
-#define F_CPU 8000000
+#define CPUCLK 16
 
 #include <inttypes.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <stdlib.h> 
 #include <math.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <avr/eeprom.h> 
-#include <util/delay.h>
+
 #include <avr/pgmspace.h>
 
-//SPI LCD defines
 #define LCDPORT PORTD
-#define LCD_DATA 1
-#define LCD_CLOCK 2
-#define LCD_DC_A0 4
-#define LCD_RST 8
-#define LCD_CS 16
+//SPI LCD defines
+#define LCD_CS    0 //grey
+#define LCD_RST   1 //brown
+#define LCD_DC_A0 2 //violet
+#define LCD_DATA  3 //green
+#define LCD_CLOCK 4 //yellow
+
 
 //LCD ST7735 contants
 #define ST7735_NOP     0x00
@@ -269,18 +270,33 @@ int lcd_putnumber(int, int, long, int, int, int, int, int);                     
 int int2asc(long, int, char*, int);                                     //Convert an int or long number to a string
 int strlen(char *);                                                     //Calculate length of string 
 
+void wait_ms(int);
+
+// Cheap & dirty delay
+void wait_ms(int ms)
+{
+    int t1, t2;
+
+    for(t1 = 0; t1 < ms; t1++)
+    {
+        for(t2 = 0; t2 < 137 * CPUCLK; t2++)
+        {
+            asm volatile ("nop" ::);
+        }   
+     }    
+}
   ///////////////////////
  //       L C D       //
 ///////////////////////    
 //Perform hardware reset to LCD
 void lcd_reset(void)
 {
-	LCDPORT |= LCD_RST;  
-	_delay_ms(100);
-	LCDPORT &= ~(LCD_RST);  
-	_delay_ms(100);
-	LCDPORT |= LCD_RST;  
-	_delay_ms(100);
+	LCDPORT |= (1 << LCD_RST);  
+	wait_ms(100);
+	LCDPORT &= ~(1 << LCD_RST);  
+	wait_ms(100);
+	LCDPORT |= (1 << LCD_RST);  
+	wait_ms(100);
 }	
 
 //Write command to LCD
@@ -288,23 +304,23 @@ void lcd_write_command(int cmd)
 {
 	int t1;
 	
-	LCDPORT &= ~(LCD_DC_A0);  //Command
-    LCDPORT &= ~(LCD_CS);     //CS=0
+	LCDPORT &= ~(1 << LCD_DC_A0);  //Command
+    LCDPORT &= ~(1 << LCD_CS);     //CS=0
 	
 	for(t1 = 7; t1 >= 0; t1--)
     {
-	    LCDPORT &= ~(LCD_CLOCK);  //SCL=0	
+	    LCDPORT &= ~(1 << LCD_CLOCK);  //SCL=0	
 	    if(cmd & (1 << t1))
 	    {
-		    LCDPORT |= LCD_DATA;
+		    LCDPORT |= (1 << LCD_DATA);
 	    }
 	    else
 	    {
-		    LCDPORT &= ~(LCD_DATA); 
+		    LCDPORT &= ~(1 << LCD_DATA); 
 	    }
-	    LCDPORT |= LCD_CLOCK;  //SCL=1		
+	    LCDPORT |= (1 << LCD_CLOCK);  //SCL=1		
 	}	
-	LCDPORT |= LCD_CS;        //CS=1
+	LCDPORT |= (1 << LCD_CS);        //CS=1
 }	
 
 //Write data to LCD
@@ -312,22 +328,22 @@ void lcd_write_data(int dvalue)
 {
 	int t1;
 	
-	LCDPORT |= LCD_DC_A0;     //Data
-	LCDPORT &= ~(LCD_CS);     //CS=0
+	LCDPORT |= (1 << LCD_DC_A0);     //Data
+	LCDPORT &= ~(1 << LCD_CS);     //CS=0
 	for(t1 = 7; t1 >= 0; t1--)
     {
-	    LCDPORT &= ~(LCD_CLOCK);  //SCL=0	
+	    LCDPORT &= ~(1 << LCD_CLOCK);  //SCL=0	
 	    if(dvalue & (1 << t1))
 	    {
-		    LCDPORT |= LCD_DATA;
+		    LCDPORT |= (1 << LCD_DATA);
 	    }
 	    else
 	    {
-		    LCDPORT &= ~(LCD_DATA); 
+		    LCDPORT &= ~(1 << LCD_DATA); 
 	    }
-	    LCDPORT |= LCD_CLOCK;  //SCL=1		
+	    LCDPORT |= (1 << LCD_CLOCK);  //SCL=1		
 	}	
-	LCDPORT |= LCD_CS;        //CS=1
+	LCDPORT |= (1 << LCD_CS);        //CS=1
 }	
 
 
@@ -336,20 +352,20 @@ void lcd_init(void)
 {
 
 	lcd_write_command(ST7735_SWRESET); // software reset
-	_delay_ms(5);
+	wait_ms(5);
 
 	lcd_write_command(ST7735_SLPOUT);  // out of sleep mode
-	_delay_ms(5);
+	wait_ms(5);
 
 	lcd_write_command(ST7735_COLMOD);  // set color mode
 	lcd_write_data(0x05);              // 16-bit color
-	_delay_ms(10);
+	wait_ms(10);
 
 	lcd_write_command(ST7735_FRMCTR1); // frame rate control
 	lcd_write_data(0x00);              // fastest refresh
 	lcd_write_data(0x06);              // 6 lines front porch
 	lcd_write_data(0x03);              // 3 lines backporch
-	_delay_ms(1);
+	wait_ms(1);
 
 	lcd_write_command(ST7735_MADCTL);  // memory access control (directions)
 	lcd_write_data(0xC8);              // row address/col address, bottom to top refresh
@@ -396,10 +412,10 @@ void lcd_init(void)
 	lcd_write_data(0x06);
 	lcd_write_data(0x02);
 	lcd_write_data(0x0F);
-	_delay_ms(10);
+	wait_ms(10);
 	
 	lcd_write_command(ST7735_NORON);   // Normal display on
-	_delay_ms(10);
+	wait_ms(10);
 
 	lcd_write_command(ST7735_DISPON);  //Display ON
 }	
@@ -614,7 +630,7 @@ int main(void)
     
     //Start ST7735 LCD
     lcd_reset();
-    _delay_ms(100);
+    wait_ms(100);
     lcd_init();
     lcd_cls0(BLACK);
     
@@ -630,11 +646,11 @@ int main(void)
     lcd_putstring(72, 54, "2x3",   LIGHTVIOLET, DARKBLUE, 2, 3);
     lcd_putstring(77, 95, "DK7IH",  WHITE, DARKBLUE, 1, 1);
     */
-    lcd_putstring(0, 0 * FONTHEIGHT, "ABCDEFGHIJK", LIGHTRED, bgcolor, 1, 1);    
-    lcd_putstring(0, 1 * FONTHEIGHT, "LMNOPQRSTUV", LIGHTGREEN, bgcolor, 1, 1);    
-    lcd_putstring(0, 2 * FONTHEIGHT, "XYZ!%&/()=?", LIGHTBLUE, bgcolor, 1, 1);    
-    lcd_putstring(0, 3 * FONTHEIGHT, "1234567890", LIGHTBLUE, bgcolor, 1, 1);    
-    lcd_putstring(0, 4 * FONTHEIGHT, ",;.:-_#*+-", YELLOW, bgcolor, 1, 1);    
+    lcd_putstring(0, 0 * FONTHEIGHT, "ST7735", LIGHTRED, bgcolor, 1, 1);    
+    lcd_putstring(0, 1 * FONTHEIGHT, "Display driver", LIGHTGREEN, bgcolor, 1, 1);    
+    lcd_putstring(0, 2 * FONTHEIGHT, "micromaker.de", LIGHTBLUE, bgcolor, 1, 1);    
+    lcd_putstring(0, 3 * FONTHEIGHT, "2018", LIGHTBLUE, bgcolor, 1, 1);    
+    lcd_putstring(0, 4 * FONTHEIGHT, ":-)", YELLOW, bgcolor, 1, 1);    
     for(;;) 
 	{
 		
