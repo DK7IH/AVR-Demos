@@ -18,16 +18,16 @@
 #include <avr/sleep.h>
 #include <avr/eeprom.h>
 #include <util/delay.h>
+ 
+#define DDSPORT PORTD
+#define DDSDDR DDRD
 
-#define DDSPORT PORTC
-#define DDSDDR DDRC
+#define DDSRES 0 //RES PC0 violet 
+#define SDIO   1 //SDIO PC1 green 
+#define SCLK   2 //SCLK PC2 blue
+#define IO_UD  3 //IO_UPDATE PC3 white
 
-#define DDSRES 1 //RES PC0 violet 
-#define SDIO   2 //SDIO PC1 green 
-#define SCLK   4 //SCLK PC2 blue
-#define IO_UD  8 //IO_UPDATE PC3 white
-
-#define CPUCLK 16
+#define CPUCLK 8
 
 int main(void);
 
@@ -66,19 +66,19 @@ void spi_send_byte(unsigned int sbyte)
 	for(t1 = 0; t1 < 8; t1++)
 	{
 	    //spi_send_bit(sbyte & x);	
-	    DDSPORT &= ~(SCLK);  //SCLK lo
+	    DDSPORT &= ~(1 << SCLK);  //SCLK lo
     	
         //Bit setzen oder löschen
 	    if(sbyte & x)
 	    {
-		    DDSPORT|= SDIO;  //SDATA  set
+		    DDSPORT|= (1 << SDIO);  //SDATA  set
 	    }
 	    else
 	    {
-		    DDSPORT &= ~(SDIO);  //SDATA  erase
+		    DDSPORT &= ~(1 << SDIO);  //SDATA  erase
 	    }
 	
-        DDSPORT |= SCLK; //SCLK hi
+        DDSPORT |= (1 << SCLK); //SCLK hi
 		x >>= 1;
 	}	
 }
@@ -121,7 +121,7 @@ void set_frequency(unsigned long frequency)
 		
 	
     //Start transfer to DDS
-    DDSPORT &= ~(IO_UD); //IO_UD lo
+    DDSPORT &= ~(1 << IO_UD); //IO_UD lo
     
 	//Send instruction bit to set fequency by frequency tuning word
 	spi_send_byte(0x04);	
@@ -137,7 +137,7 @@ void set_frequency(unsigned long frequency)
     }    
 	
 	//End transfer sequence
-    DDSPORT|= (IO_UD); //IO_UD hi 
+    DDSPORT|= (1 << IO_UD); //IO_UD hi 
 }
 
 void set_clock_multiplier(void)
@@ -162,16 +162,16 @@ int main()
 {
     long f = 5000000;     
     //Set DDRs of DDSPort and DDSResetport  
-	DDSDDR = 0x0F; //SPI-Lines PC0:PC2, RES PC3
+	DDSDDR = 0x0F; //SPI-Lines for AD9951
 	
 	wait_ms(100);
+	
 	//Reset DDS (AD9951)
-	
-    DDSPORT |= DDSRES;  
+	DDSPORT |= (1 << DDSRES);  
 	wait_ms(100);
-	DDSPORT &= ~DDSRES;          
+	DDSPORT &= ~(1 << DDSRES);          
     wait_ms(100);
-    DDSPORT |= DDSRES;  
+    DDSPORT |= (1 << DDSRES);  
 	wait_ms(100);
 	
     
@@ -181,9 +181,9 @@ int main()
     
     for(;;) 
 	{
-		set_frequency(f += 100);
+		set_frequency(f += 500);
 		
-		if(f > 40000000)
+		if(f > 60000000)
 		{
 			f = 5000000;
 		}	
