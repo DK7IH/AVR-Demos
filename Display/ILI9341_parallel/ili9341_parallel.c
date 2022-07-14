@@ -16,10 +16,10 @@
 //LCD ILI9341
 //Parallel output (8 bit) line defines
 #define LCDGPIO GPIOA
-#define LCD_RES 8 //CMD (low) or DATA (high)					
+#define LCD_RES 8 //Reset (active low)						
 #define LCD_RD 9 //Write operation indicator (actice low)	
 #define LCD_WR 10 //Read operation (actice low)				
-#define LCD_RS 11 //Reset (active low)						
+#define LCD_RS 11 //CMD (low) or DATA (high)					
 
 #define LCD_CMD   0
 #define LCD_DATA  1
@@ -282,7 +282,7 @@ void lcd_send(int dc, int val)
 	LCDGPIO->ODR |= val & 0xFF;
 	
 	LCDGPIO->ODR &= ~(1 << LCD_WR); //Transfer data
-	LCDGPIO->ODR |= (1 << LCD_WR);
+	//LCDGPIO->ODR |= (1 << LCD_WR);
 }	
 
 void lcd_init(void)
