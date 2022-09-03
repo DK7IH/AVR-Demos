@@ -161,7 +161,14 @@ void set_digit(int pos0, int num)
     
     tm1637_start();
     tm1637_write(CMD3_ADDRESS | pos1); //Define digit position
-    tm1637_write(segdata[num]);            //Write data
+    if(pos1 == 4)
+    {
+        tm1637_write(segdata[num] | 128);            //Write data + decimal
+    }
+    else
+    {
+        tm1637_write(segdata[num]);            //Write data
+    }    
     tm1637_stop();
 }	
 
