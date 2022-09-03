@@ -39,15 +39,12 @@ const uint8_t segdata[] = { 0b00111111,    // 0
 
 #define MAX_BRIGHTNESS 7
 
-//MISC
-int main(void);
-
 #define DISPLAYPDDR DDRB
 #define DISPLAYPORT PORTB
 #define CLK 0
 #define DIO 1
 
-
+int main(void);
 void wait_ms(int);
 void tm1637_start(void);
 void tm1637_stop(void);
@@ -112,11 +109,9 @@ void tm1637_write(int value)
 	}	
 	DISPLAYPORT &= ~(1 << CLK);
 	DISPLAYPORT |= (1 << DIO);
-	
-	
 	DISPLAYPDDR &= ~(1 << DIO); 
 			
-	//ACK
+	//ACK routine (ACK signal not used)
 	DISPLAYPORT |= (1 << CLK);
 	DISPLAYPDDR |= (1 << DIO);
 }	
@@ -172,10 +167,19 @@ void set_digit(int pos0, int num)
 
 void show_number(long n)
 {
-	int t1;
-	long d;
+	int t1, dig;
+	long d, n1 = n;
+			
+	//Get valid digits	
+	for (t1 = 0; n1 / 10; t1++)
+	{
+	    n1 = n1 / 10;
+	}
+	dig = t1 + 1;
 	
-	for (t1 = 0; t1 < 6; t1++)
+	//Display valid digits
+	n1 = n;	
+	for (t1 = 0; t1 < dig; t1++)
 	{
 		d  = n - 10 * (n / 10);
 		n = n / 10;
@@ -186,6 +190,7 @@ void show_number(long n)
 int main(void)
 {
 	int t1 = 0;			
+	
 	//INPUT
     DISPLAYPDDR = (1 << CLK) | (1 << DIO);
         
@@ -194,7 +199,9 @@ int main(void)
 	DISPLAYPORT |= (1 << CLK); 
 		
 	set_brightness(5);
-
+	tm1637_claer();
+	wait_ms(1000);
+	
     for(;;)
     {
     
