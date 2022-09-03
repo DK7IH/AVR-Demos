@@ -10,12 +10,8 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <avr/io.h>
-#include <avr/interrupt.h>
-#include <avr/sleep.h>
-#include <avr/eeprom.h>
-#include <util/delay.h>
+
 
 int main(void);
 
