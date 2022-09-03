@@ -1,7 +1,7 @@
 /*****************************************************************/
-/*                 DDS mit ATMega32 und AD 9834                  */
+/*                 DDS with ATMega und AD9834                   */
 /*  ************************************************************ */
-/*  Mikrocontroller:  ATMEL AVR ATmega32, 16 MHz                  */
+/*  Mikrocontroller:  ATMEL AVR ATmega32, 16 MHz                 */
 /*                                                               */
 /*  Compiler:         GCC (GNU AVR C-Compiler)                   */
 /*  Autor:            Peter Rachow                               */
@@ -147,7 +147,7 @@ void set_frequency1(unsigned long f)
 
 int main()
 {
-	DDRB = 0xFF; //SPI (Bit0...Bit2) 
+	DDRB = 0x03; //SPI (Bit0...Bit2 of respective port) 
     
     wait_ms(10);       
    
@@ -156,7 +156,6 @@ int main()
 		
 	for(;;) 
 	{
-		set_frequency1(10000000);
 	}    
 	
     return 0; 
