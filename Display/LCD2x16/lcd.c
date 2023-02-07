@@ -177,24 +177,23 @@ void lcd_cls(void)
 	}	
 }
 
-//Init LCD
+   //Init LCD
 void lcd_init(void)
 {
-    // Basic settings of LCD
-    // 4-Bit mode, 2 lines, 5x7 matrix
-    wait_ms(1);
-    lcd_write(0, 0x28);
-    wait_ms(1);
-    lcd_write(0, 0x28);
-    wait_ms(1);
+	wait_ms(20);
+                               // Basic settings of LCD
+    lcd_write(0, 0b00101100);  //4-Bit mode, 2 lines, 5x7 matrix
+    wait_ms(8);
+    lcd_write(0, 0b00101100);  //4-Bit mode, 2 lines, 5x7 matrix
+    wait_ms(1);        
+    lcd_write(0, 0b00101100);  //4-Bit mode, 2 lines, 5x7 matrix
+            
+    lcd_write(0, 0b00001100);  // Display on, Cursor off, Blink off 
+            
+    lcd_write(0, 0b00010000); // No display shift, no cursor move
     
-    // Display on, Cursor off, Blink off 
-    lcd_write(0, 0x0C);
-    wait_ms(1);
-
-    // No display shift, no cursor move
-    lcd_write(0, 0x04);
-    wait_ms(1);
+    lcd_write(0, 0b00000001);  //Display Clear
+    
 }
 
 //Write an n-digit number (int or long) to LCD
