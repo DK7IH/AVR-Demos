@@ -14,8 +14,12 @@
 #include <math.h>
 #include <avr/interrupt.h>
 #include <avr/io.h>
+#include <util/delay.h>
 
-#define CPUCLK 8
+
+#ifdef F_CPU
+#undef F_CPU
+#endif
 
 #define CMD1_WRITE_AUTO  0b01000000
 #define CMD1_WRITE_FIX   0b01000100
@@ -23,7 +27,7 @@
 #define CMD3_DISPLAY_ON  0b10001000
 #define CMD3_DISPLAY_OFF 0b10000000
 
-#define DELAYTIME 0
+#define DELAYTIME 2
 
 //Defining segments in use for each number
 const uint8_t segdata[] = { 0b00111111,    // 0
@@ -45,55 +49,42 @@ const uint8_t segdata[] = { 0b00111111,    // 0
 #define DIO 1
 
 int main(void);
-void wait_ms(int);
 void tm1637_start(void);
 void tm1637_stop(void);
 void tm1637_write(int);
-void tm1637_claer(void);
+void tm1637_clear(void);
 void set_brightness(int);
 void set_digit(int, int);
 void show_number(long);
-void wait_ms(int);
 
-// Cheap & dirty delay
-void wait_ms(int ms)
-{
-    int t1, t2;
-
-    for(t1 = 0; t1 < ms; t1++)
-    {
-        for(t2 = 0; t2 < 137 * CPUCLK; t2++)
-        {
-            asm volatile ("nop" ::);
-        }   
-     }    
-}
 
 void tm1637_start(void)
 {
-	DISPLAYPORT |= (1 << DIO); 
-	DISPLAYPORT |= (1 << CLK); 
 	DISPLAYPORT &= ~(1 << DIO); 
-	DISPLAYPORT &= ~(1 << CLK); 
-	
+	_delay_us(DELAYTIME);
+	DISPLAYPORT &= ~(1 << CLK);
+	_delay_us(DELAYTIME);
 }
 
 void tm1637_stop(void)
 {
 	DISPLAYPORT &= ~(1 << DIO); 
-    DISPLAYPORT &= ~(1 << CLK); 
-	DISPLAYPORT |= (1 << DIO); 
+	_delay_us(DELAYTIME);
 	DISPLAYPORT |= (1 << CLK); 
+	_delay_us(DELAYTIME);
+	DISPLAYPORT |= (1 << DIO); 
+	_delay_us(DELAYTIME);
 }
 	
 void tm1637_write(int value)
 {
-
     int t1;
         
     for(t1 = 0; t1 < 8; t1++)
     {
+		_delay_us(DELAYTIME);
 		DISPLAYPORT &= ~(1 << CLK);
+		_delay_us(DELAYTIME);
 		
 		if((1 << t1) & value)
 		{
@@ -103,20 +94,23 @@ void tm1637_write(int value)
 		{
 			DISPLAYPORT &= ~(1 << DIO);
 		}
+		_delay_us(DELAYTIME);
 		
 		DISPLAYPORT |= (1 << CLK);
-		
+		_delay_us(DELAYTIME);
 	}	
 	DISPLAYPORT &= ~(1 << CLK);
 	DISPLAYPORT |= (1 << DIO);
-	DISPLAYPDDR &= ~(1 << DIO); 
-			
-	//ACK routine (ACK signal not used)
+	_delay_us(DELAYTIME);
+	
 	DISPLAYPORT |= (1 << CLK);
-	DISPLAYPDDR |= (1 << DIO);
+	_delay_us(DELAYTIME);
+			
+	DISPLAYPORT &= ~(1 << CLK);		
+	_delay_us(DELAYTIME);
 }	
 
-void tm1637_claer(void)
+void tm1637_clear(void)
 {
 	int t1 = 0;
 	
@@ -128,7 +122,7 @@ void tm1637_claer(void)
     
         tm1637_start();
         tm1637_write(CMD3_ADDRESS | t1); //Define digit position
-        tm1637_write(0x00);                  //Write data
+        tm1637_write(0x00);              //Write data
         tm1637_stop();
      }   
 }     
@@ -170,7 +164,7 @@ void set_digit(int pos0, int num)
         tm1637_write(segdata[num]);            //Write data
     }    
     tm1637_stop();
-}	
+}
 
 void show_number(long n)
 {
@@ -193,21 +187,22 @@ void show_number(long n)
 		set_digit(5 - t1, d);
 	}	
 }	
+
 	
 int main(void)
 {
-	int t1 = 0;			
+	int t1 = 100;			
 	
-	//INPUT
+	//OUPUT lines for TM1637
     DISPLAYPDDR = (1 << CLK) | (1 << DIO);
-        
+            
     //Init Display
     DISPLAYPORT |= (1 << DIO); 
 	DISPLAYPORT |= (1 << CLK); 
 		
-	set_brightness(5);
-	tm1637_claer();
-	wait_ms(1000);
+	set_brightness(7);
+	tm1637_clear();
+	_delay_ms(10);
 	
     for(;;)
     {
@@ -218,7 +213,7 @@ int main(void)
         {
 			t1 = 0;
 		}	
-		
+
     }
 	return 0;
 }
